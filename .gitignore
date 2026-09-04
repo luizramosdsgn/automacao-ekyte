@@ -1,0 +1,29 @@
+# Pastas de Compilação e Binários (PyInstaller)
+build/
+dist/
+*.exe
+
+# Arquivos e Pastas do Python / Playwright
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ms-playwright/
+
+# Variáveis de Ambiente e Logs
+.env
+*.log
+
+# Configurações de IDEs (VSCode, PyCharm, etc)
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Pastas de Testes e Mídias Locais
+imagens/
+imgs/
+*.txt
+!requirements.txt
