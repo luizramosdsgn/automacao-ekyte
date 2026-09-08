@@ -68,10 +68,21 @@ python app_ekyte.py
 
 ## 📦 Compilando o Executável (.exe)
 
-Para gerar o arquivo `.exe` para distribuição:
+Para gerar o arquivo `.exe` para distribuição, execute os comandos abaixo no terminal (PowerShell), um por vez:
 
-```bash
-pyinstaller app_ekyte.spec
+### 1. Definir a variável de ambiente (para embutir o navegador)
+```powershell
+$env:PLAYWRIGHT_BROWSERS_PATH="0"
+```
+
+### 2. Garantir o download local do Chromium
+```powershell
+python -m playwright install chromium
+```
+
+### 3. Compilar a aplicação
+```powershell
+python -m PyInstaller --noconsole --onefile --collect-all customtkinter app_ekyte.py
 ```
 
 O executável final estará disponível na pasta `dist/app_ekyte.exe`.

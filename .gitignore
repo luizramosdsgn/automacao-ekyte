@@ -22,8 +22,4 @@ ms-playwright/
 .DS_Store
 Thumbs.db
 
-# Pastas de Testes e Mídias Locais
-imagens/
-imgs/
-*.txt
 !requirements.txt
