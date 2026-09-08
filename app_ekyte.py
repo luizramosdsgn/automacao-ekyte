@@ -3,10 +3,18 @@ os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
 
 import re
 import sys
+import json
 import threading
 import customtkinter as ctk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from playwright.sync_api import sync_playwright
+
+# Caminho do config.json (fica ao lado do .exe ou do .py)
+if getattr(sys, 'frozen', False):
+    _BASE_DIR = os.path.dirname(sys.executable)
+else:
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(_BASE_DIR, "config.json")
 
 ctk.set_appearance_mode("dark")  
 ctk.set_default_color_theme("blue")
@@ -21,6 +29,7 @@ class AppAutomaEkyte(ctk.CTk):
 
         self.pasta_imagens = ""
         self.criar_interface()
+        self.carregar_config()  # ← Lembrar de Mim: carrega e-mail e pasta salvos
 
     def criar_interface(self):
         frame_config = ctk.CTkFrame(self, width=350, corner_radius=10)
@@ -82,12 +91,94 @@ class AppAutomaEkyte(ctk.CTk):
             self.pasta_imagens = pasta
             caminho_curto = ".../" + os.path.basename(pasta) if len(pasta) > 30 else pasta
             self.lbl_pasta.configure(text=caminho_curto)
+            self.salvar_config()  # ← Salva a pasta escolhida automaticamente
 
     def log(self, mensagem):
         self.textbox_log.configure(state="normal")
         self.textbox_log.insert("end", mensagem + "\n")
         self.textbox_log.see("end") 
         self.textbox_log.configure(state="disabled")
+
+    # =============================================
+    # ★ LEMBRAR DE MIM – Salvar / Carregar config
+    # =============================================
+
+    def carregar_config(self):
+        """Carrega e-mail e pasta do config.json (se existir)."""
+        try:
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+
+                email_salvo = cfg.get("email", "")
+                pasta_salva = cfg.get("pasta_imagens", "")
+
+                if email_salvo:
+                    self.entry_email.insert(0, email_salvo)
+
+                if pasta_salva and os.path.isdir(pasta_salva):
+                    self.pasta_imagens = pasta_salva
+                    caminho_curto = (
+                        ".../" + os.path.basename(pasta_salva)
+                        if len(pasta_salva) > 30
+                        else pasta_salva
+                    )
+                    self.lbl_pasta.configure(text=caminho_curto)
+
+                self.log("💾 Configurações anteriores restauradas.")
+        except Exception:
+            pass  # arquivo corrompido / inexistente → ignora silenciosamente
+
+    def salvar_config(self):
+        """Persiste e-mail e pasta no config.json."""
+        try:
+            cfg = {
+                "email": self.entry_email.get().strip(),
+                "pasta_imagens": self.pasta_imagens,
+            }
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass  # falha silenciosa (permissão, etc.)
+
+    # =============================================
+    # ★ PRÉ-CHECK – Auditoria de Imagens
+    # =============================================
+
+    def pre_check_imagens(self, tarefas):
+        """Verifica se existem imagens para cada tarefa ANTES de abrir o navegador.
+        Retorna True se pode prosseguir, False se o usuário cancelou."""
+        faltando = []
+
+        for task in tarefas:
+            for tipo_form in task["tipos_formulario"]:
+                # Carrosseis não fazem upload automático, então não precisamos checar
+                if "Carrossel" in tipo_form:
+                    continue
+                imagens = self.buscar_imagens(task["nome"], tipo_form)
+                if not imagens:
+                    tipo_curto = "Story" if "Story" in tipo_form else "Feed"
+                    faltando.append(f"  • Tarefa {task['nome']} ({tipo_curto})")
+
+        if faltando:
+            lista_txt = "\n".join(faltando)
+            mensagem = (
+                f"⚠️ Faltam imagens para {len(faltando)} formulário(s):\n\n"
+                f"{lista_txt}\n\n"
+                "Deseja continuar mesmo assim?"
+            )
+            resposta = messagebox.askyesno(
+                "Pré-Check de Imagens", mensagem, icon="warning"
+            )
+            if not resposta:
+                self.log("🛑 Automação cancelada pelo usuário (imagens faltando).")
+                return False
+            else:
+                self.log(f"⚠️ Usuário optou por continuar sem {len(faltando)} imagem(ns).")
+
+        return True
+
+    # =============================================
 
     def iniciar_thread(self):
         if not self.entry_email.get() or not self.entry_senha.get():
@@ -101,6 +192,22 @@ class AppAutomaEkyte(ctk.CTk):
         if not conteudo_texto:
             self.log("❌ ERRO: Cole o texto do Google Docs na caixa acima.")
             return
+
+        # ── Salvar config ao iniciar (captura e-mail atualizado) ──
+        self.salvar_config()
+
+        # ── Pré-Check de Imagens ──
+        self.log("🔍 Analisando texto para pré-check de imagens...")
+        tarefas_preview = self.extrair_dados_do_texto(conteudo_texto)
+
+        if not tarefas_preview:
+            self.log("❌ Nenhuma tarefa válida encontrada (ou todas eram vídeos).")
+            return
+
+        if not self.pre_check_imagens(tarefas_preview):
+            return  # Usuário cancelou
+
+        self.log("✅ Pré-check concluído. Iniciando automação...")
 
         self.btn_iniciar.configure(state="disabled", text="⏳ RODANDO...", fg_color="#555555")
         thread = threading.Thread(target=self.rodar_automacao_core, args=(conteudo_texto,))

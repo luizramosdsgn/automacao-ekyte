@@ -12,6 +12,9 @@ venv/
 env/
 ms-playwright/
 
+# Configurações Locais do Usuário (Lembrar de Mim)
+config.json
+
 # Variáveis de Ambiente e Logs
 .env
 *.log
