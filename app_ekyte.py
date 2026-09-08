@@ -111,7 +111,7 @@ class AppAutomaEkyte(ctk.CTk):
         tipos = []
         
         # 1. Regra para múltiplos formulários
-        if "feed e story" in texto_min or "story e feed" in texto_min:
+        if "feed e story" in texto_min or "story e feed" in texto_min or "stories e feed" in texto_min or "feed e stories" in texto_min:
             tipos.append("Post Único: Feed")
             tipos.append("Post Único: Story, Reel, Short, TikTok")
             return tipos
@@ -122,7 +122,7 @@ class AppAutomaEkyte(ctk.CTk):
         elif "carrossel" in texto_min:
             tipos.append("Post Carrossel: Feed")
             
-        # 3. Regras singulares limpas (sem reel, shorts, etc.)
+        # 3. Regras singulares
         elif any(palavra in texto_min for palavra in ["story", "stories", "storie"]):
             tipos.append("Post Único: Story, Reel, Short, TikTok")
         else:
@@ -154,7 +154,7 @@ class AppAutomaEkyte(ctk.CTk):
         return tarefas
 
     def buscar_imagens(self, nome_tarefa, tipo_form):
-        """Busca imagens considerando a data E o tipo de formulário atual (feed, story)"""
+        """Busca imagens considerando a data e o tipo de formulário atual (feed, story)"""
         tipo_form_lower = tipo_form.lower()
         is_story = "story" in tipo_form_lower
         is_feed = "feed" in tipo_form_lower
@@ -179,9 +179,6 @@ class AppAutomaEkyte(ctk.CTk):
                 if is_feed and "feed" in nome_sem_ext:
                     return [caminho_completo]
 
-        # 2. A MÁGICA QUE VOCÊ PEDIU (Fallback / Padrão)
-        # Se o form for de Feed (e ele não achou a palavra "feed" acima), 
-        # ele cai nesta regra e busca apenas a data limpa (ex: "18-09.png")
         for candidato in candidatos:
             caminho_completo = os.path.join(self.pasta_imagens, candidato)
             nome_sem_ext = os.path.splitext(candidato)[0].lower()
