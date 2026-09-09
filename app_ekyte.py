@@ -71,6 +71,10 @@ class AppAutomaEkyte(ctk.CTk):
         self.switch_headless = ctk.CTkSwitch(frame_config, text="Ocultar Chrome", progress_color="#3179FF")
         self.switch_headless.pack(padx=20, pady=10, anchor="w")
 
+        # Modo de Teste
+        self.switch_teste = ctk.CTkSwitch(frame_config, text="Modo de Vídeo (dev)", progress_color="#3179FF")
+        self.switch_teste.pack(padx=20, pady=10, anchor="w")
+
         # Botão Start/Stop
         self.btn_iniciar = ctk.CTkButton(frame_config, text="INICIAR AUTOMAÇÃO", height=50, font=("Segoe UI", 14, "bold"), fg_color="#3179FF", hover_color="#2562d4", command=self.toggle_automacao)
         self.btn_iniciar.pack(padx=20, pady=30, fill="x")
