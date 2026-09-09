@@ -351,7 +351,7 @@ class AppAutomaEkyte(ctk.CTk):
                 # ==========================================
                 
                 self.log("📂 Indo para as Tarefas...")
-                page.locator("a[href*='#/tasks/list']").click()
+                page.locator("a[href*='#/tasks/list']").first.click()
                 page.wait_for_timeout(3000) 
 
                 # ==========================================
