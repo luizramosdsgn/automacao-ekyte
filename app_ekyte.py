@@ -67,13 +67,20 @@ class AppAutomaEkyte(ctk.CTk):
         self.lbl_pasta = ctk.CTkLabel(frame_config, text="Nenhuma pasta selecionada", text_color="gray", font=("Segoe UI", 11))
         self.lbl_pasta.pack(padx=20, pady=(0, 15))
 
+        # ==========================================
+        # SWITCHES (Lado a Lado)
+        # ==========================================
+        frame_switches = ctk.CTkFrame(frame_config, fg_color="transparent")
+        frame_switches.pack(padx=20, pady=10, fill="x")
+
         # Modo Headless
-        self.switch_headless = ctk.CTkSwitch(frame_config, text="Ocultar Chrome", progress_color="#3179FF")
-        self.switch_headless.pack(padx=20, pady=10, anchor="w")
+        self.switch_headless = ctk.CTkSwitch(frame_switches, text="Ocultar Chrome", progress_color="#3179FF")
+        self.switch_headless.pack(side="left", expand=True, anchor="w")
 
         # Modo de Teste
-        self.switch_teste = ctk.CTkSwitch(frame_config, text="Modo de Vídeo (dev)", progress_color="#3179FF")
-        self.switch_teste.pack(padx=20, pady=10, anchor="w")
+        self.switch_teste = ctk.CTkSwitch(frame_switches, text="Vídeo (dev)", progress_color="#3179FF")
+        self.switch_teste.pack(side="right", expand=True, anchor="e")
+        # ==========================================
 
         # Botão Start/Stop
         self.btn_iniciar = ctk.CTkButton(frame_config, text="INICIAR AUTOMAÇÃO", height=50, font=("Segoe UI", 14, "bold"), fg_color="#3179FF", hover_color="#2562d4", command=self.toggle_automacao)
@@ -92,10 +99,19 @@ class AppAutomaEkyte(ctk.CTk):
         self.textbox_log.pack(padx=20, pady=(0, 15), fill="both", expand=True)
         self.textbox_log.configure(state="disabled") 
 
-        # Barra de Progresso
-        self.progressbar = ctk.CTkProgressBar(frame_dados, height=10, progress_color="#3179FF")
-        self.progressbar.pack(padx=20, pady=(0, 20), fill="x")
+        # ==========================================
+        # BARRA DE PROGRESSO COM TEXTO
+        # ==========================================
+        frame_progresso = ctk.CTkFrame(frame_dados, fg_color="transparent")
+        frame_progresso.pack(padx=20, pady=(0, 20), fill="x")
+        
+        self.progressbar = ctk.CTkProgressBar(frame_progresso, height=12, progress_color="#3179FF")
+        self.progressbar.pack(side="left", fill="x", expand=True, padx=(0, 10))
         self.progressbar.set(0) # Inicia vazia
+
+        self.lbl_progresso = ctk.CTkLabel(frame_progresso, text="0%", font=("Segoe UI", 12, "bold"), text_color="#3179FF")
+        self.lbl_progresso.pack(side="right")
+        # ==========================================
 
     # =============================================
     # ★ CONTROLES DA INTERFACE
@@ -121,6 +137,11 @@ class AppAutomaEkyte(ctk.CTk):
         self.textbox_log.insert("end", mensagem + "\n")
         self.textbox_log.see("end") 
         self.textbox_log.configure(state="disabled")
+        
+    def atualizar_progresso_ui(self, valor, texto):
+        """Atualiza a barra de progresso e o texto (Thread safe)"""
+        self.progressbar.set(valor)
+        self.lbl_progresso.configure(text=texto)
 
     def carregar_config(self):
         try:
@@ -153,7 +174,7 @@ class AppAutomaEkyte(ctk.CTk):
         if self.is_running:
             self.stop_requested = True
             self.btn_iniciar.configure(text="🛑 CANCELANDO...", fg_color="#555555", hover_color="#333333", state="disabled")
-            self.log("⚠️ Solicitação de parada recebida. Finalizando ciclo atual...")
+            self.log("⚠️ Solicitação de parada recebida. Interrompendo imediatamente...")
         else:
             if not self.entry_email.get() or not self.entry_senha.get():
                 self.log("❌ ERRO: Preencha e-mail e senha.")
@@ -182,11 +203,17 @@ class AppAutomaEkyte(ctk.CTk):
             self.is_running = True
             self.stop_requested = False
             self.progressbar.set(0)
+            self.lbl_progresso.configure(text="0%")
             self.btn_iniciar.configure(text="🛑 PARAR AUTOMAÇÃO", fg_color="#ef4444", hover_color="#b91c1c")
             
             self.log("✅ Iniciando automação...")
             thread = threading.Thread(target=self.rodar_automacao_core, args=(conteudo_texto,))
             thread.start()
+
+    def verificar_parada(self):
+        """Dispara um erro forçado se o usuário clicar no botão de parada."""
+        if self.stop_requested:
+            raise InterruptedError("Automação abortada manualmente pelo usuário.")
 
     def pre_check_imagens(self, tarefas):
         faltando = []
@@ -320,18 +347,24 @@ class AppAutomaEkyte(ctk.CTk):
                 context = browser.new_context()
                 page = context.new_page()
 
+                self.verificar_parada()
+
                 self.log("🔐 Autenticando no eKyte...")
                 page.goto("https://app.ekyte.com")
                 page.fill("input[name='email']", email)
                 page.fill("input[name='password']", senha)
                 page.click("button:has-text('Entrar')")
                 
+                self.verificar_parada()
+
                 # ==========================================
                 # LÓGICA INTELIGENTE DE MUDANÇA DE EMPRESA
                 # ==========================================
                 self.log("🏢 Verificando workspace ativo...")
                 btn_empresa = page.locator("div.menu-select-simple__link div[title*='Clique para trocar empresa']")
                 btn_empresa.wait_for(state="visible", timeout=15000)
+                
+                self.verificar_parada()
                 
                 titulo_atual = btn_empresa.get_attribute("title") or ""
                 
@@ -342,56 +375,58 @@ class AppAutomaEkyte(ctk.CTk):
                     btn_empresa.click()
                     page.wait_for_timeout(1000)
                     
+                    self.verificar_parada()
+                    
                     page.locator("li.menu-select-simple__item span").filter(has_text=re.compile(r"Audácia", re.IGNORECASE)).click()
                     
                     self.log("⏳ Aguardando recarregamento da página...")
                     page.wait_for_timeout(6000)
                 else:
                     self.log("✅ Workspace 'Audácia Mkt&Co' já está ativo.")
-                # ==========================================
                 
+                self.verificar_parada()
+
                 self.log("📂 Indo para as Tarefas...")
-                page.locator("a[href*='#/tasks/list']").first.click()
+                page.get_by_role("link", name="Tarefas").first.click()
                 page.wait_for_timeout(3000) 
+
+                self.verificar_parada()
 
                 # ==========================================
                 # LÓGICA DO FILTRO DE DATA
                 # ==========================================
                 self.log("📅 Verificando filtro de data...")
-                # Procura o botão do calendário do eKyte
                 btn_filtro_data = page.locator("button.DateRangePickerInput_calendarIcon").first
                 btn_filtro_data.wait_for(state="visible", timeout=10000)
                 
-                # Pega o texto atual que está dentro do span no botão
                 span_filtro = btn_filtro_data.locator("span").first
                 texto_filtro_atual = span_filtro.inner_text().lower()
+
+                self.verificar_parada()
 
                 if "todo o período" not in texto_filtro_atual:
                     self.log(f"🔄 Filtro atual detectado: '{texto_filtro_atual}'. Ajustando para 'Todo o período'...")
                     btn_filtro_data.click()
-                    page.wait_for_timeout(1000) # Espera o menu suspenso abrir
+                    page.wait_for_timeout(1000) 
                     
-                    # Clica na opção "Todo o período"
                     page.locator("div.date-picker-lateral-infos a").filter(has_text="Todo o período").click()
                     page.wait_for_timeout(500)
                     
-                    # Clica em Aplicar
                     page.locator("div.console-footer-apply button.btn-primary:has-text('Aplicar')").click()
                     
                     self.log("⏳ Aguardando tarefas carregarem após mudança de filtro...")
-                    page.wait_for_timeout(3000) # Tempo para a tabela dar o refresh
+                    page.wait_for_timeout(3000) 
                     self.log("✅ Filtro ajustado com sucesso.")
                 else:
                     self.log("✅ Filtro de data já está configurado para 'Todo o período'.")
-                # ==========================================
+                
+                self.verificar_parada()
 
                 page.locator("text='[ROBO]'").first.click()
                 page.wait_for_timeout(2000)
 
                 for index, task in enumerate(tarefas):
-                    if self.stop_requested:
-                        self.log("🛑 Ciclo abortado pelo usuário.")
-                        break 
+                    self.verificar_parada()
 
                     self.log(f"\n🔄 Processando Tarefa {index+1}/{total_tarefas}: {task['nome']}")
                     
@@ -403,6 +438,8 @@ class AppAutomaEkyte(ctk.CTk):
                     page.locator("#input-taskDueDate").fill(task['data'] + "/2026")
                     page.keyboard.press("Enter")
                     
+                    self.verificar_parada()
+
                     page.locator(".actions-description").click() 
                     page.locator(".ql-editor[contenteditable='true']").fill(task['descricao'])
                     page.locator("button.button-save-big").click()
@@ -411,6 +448,8 @@ class AppAutomaEkyte(ctk.CTk):
                     tarefa_tem_carrossel = False
 
                     for tipo_form in task['tipos_formulario']:
+                        self.verificar_parada()
+
                         self.log(f"   ↳ {tipo_form}")
                         
                         if "Carrossel" in tipo_form:
@@ -439,12 +478,16 @@ class AppAutomaEkyte(ctk.CTk):
                                 qtd_imagens = str(len(imagens))
                                 self.log(f"   ⏳ Aguardando eKyte validar ({qtd_imagens} arquivo(s))...")
                                 
+                                self.verificar_parada()
                                 page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
-                                
+                                self.verificar_parada()
+
                                 page.locator("button.btn-primary:has-text('Adicionar')").click()
                                 page.wait_for_timeout(1000)
                         else:
                             self.log("   ↳ (Manual) Upload de Carrossel.")
+                        
+                        self.verificar_parada()
 
                         page.locator("div.button-save button:has-text('Salvar')").click()
                         page.wait_for_timeout(2000)
@@ -452,6 +495,8 @@ class AppAutomaEkyte(ctk.CTk):
                         page.locator("a.back-task").click()
                         page.wait_for_timeout(2000)
                     
+                    self.verificar_parada()
+
                     if not tarefa_tem_carrossel:
                         page.locator("a.next-phase").click()
                         page.wait_for_timeout(1000)
@@ -460,20 +505,25 @@ class AppAutomaEkyte(ctk.CTk):
                     else:
                         self.log(f"⚠️ {task['nome']} Retida (Aguardando Imagens do Carrossel).")
                     
+                    # Atualiza o progresso visualmente enviando o valor e o texto
                     progresso_atual = (index + 1) / total_tarefas
-                    self.after(0, self.progressbar.set, progresso_atual)
+                    pct = int(progresso_atual * 100)
+                    texto_progresso = f"{pct}% ({index + 1}/{total_tarefas})"
+                    self.after(0, self.atualizar_progresso_ui, progresso_atual, texto_progresso)
                     
                     page.wait_for_timeout(2000)
 
-                    if index < len(tarefas) - 1 and not self.stop_requested:
+                    if index < len(tarefas) - 1:
+                        self.verificar_parada()
                         page.locator("#navigation-next--task").click()
                         page.wait_for_timeout(3000) 
 
-                if not self.stop_requested:
-                    self.log("\n🎉 AUTOMAÇÃO FINALIZADA COM SUCESSO!")
-                
+                self.log("\n🎉 AUTOMAÇÃO FINALIZADA COM SUCESSO!")
                 browser.close()
         
+        # TRATAMENTO EXCLUSIVO PARA O BOTÃO DE PARADA
+        except InterruptedError as e:
+            self.log(f"🛑 {str(e)}")
         except Exception as e:
             self.log(f"❌ ERRO CRÍTICO: {str(e)}")
         
@@ -486,6 +536,7 @@ class AppAutomaEkyte(ctk.CTk):
         self.btn_iniciar.configure(state="normal", text="INICIAR AUTOMAÇÃO", fg_color="#3179FF", hover_color="#2562d4")
         if self.progressbar.get() < 1.0:
             self.progressbar.set(0)
+            self.lbl_progresso.configure(text="0%")
 
 if __name__ == "__main__":
     app = AppAutomaEkyte()
