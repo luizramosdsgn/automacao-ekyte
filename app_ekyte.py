@@ -430,6 +430,31 @@ class AppAutomaEkyte(ctk.CTk):
 
                     self.log(f"\n🔄 Processando Tarefa {index+1}/{total_tarefas}: {task['nome']}")
                     
+                    # ==========================================
+                    # VALIDAÇÃO DE SEGURANÇA DA TAREFA ATUAL
+                    # ==========================================
+                    titulo_header = page.locator(".title-header").first
+                    titulo_header.wait_for(state="visible", timeout=10000)
+                    texto_titulo_atual = titulo_header.inner_text()
+                    
+                    if "[ROBO]" not in texto_titulo_atual:
+                        self.log(f"⚠️ Atenção: A tarefa aberta '{texto_titulo_atual}' não é o template [ROBO].")
+                        self.log("🔙 Fechando tarefa atual e buscando o próximo [ROBO] na lista...")
+                        
+                        # Clica no botão de fechar a tarefa
+                        page.locator("li.close-modal").first.click()
+                        page.wait_for_timeout(2000)
+                        
+                        self.verificar_parada()
+                        
+                        # Procura [ROBO] novamente na lista e entra
+                        page.locator("text='[ROBO]'").first.click()
+                        page.wait_for_timeout(3000)
+                        
+                        # Aguarda o novo cabeçalho carregar antes de prosseguir
+                        titulo_header.wait_for(state="visible", timeout=10000)
+                    # ==========================================
+
                     page.locator(".title-header").click()
                     page.locator(".title-input input").fill(task['nome'])
                     page.keyboard.press("Enter")
