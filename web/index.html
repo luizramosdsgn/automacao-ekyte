@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Robô eKyte Web</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Esse script é injetado automaticamente pelo Python -->
+    <script type="text/javascript" src="/eel.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Coluna Esquerda: Configurações -->
+      <div class="card config-card">
+        <h2>⚙️ Configurações</h2>
+
+        <div class="input-group">
+          <label>E-mail do eKyte:</label>
+          <input type="email" id="email" placeholder="seu@email.com" />
+        </div>
+
+        <div class="input-group">
+          <label>Senha do eKyte:</label>
+          <input type="password" id="senha" placeholder="Sua senha" />
+        </div>
+
+        <div class="input-group">
+          <label>Pasta das Imagens:</label>
+          <button class="btn btn-secondary" onclick="escolherPasta()">
+            📁 Escolher Diretório
+          </button>
+          <span id="caminho-pasta" class="text-muted"
+            >Nenhuma pasta selecionada</span
+          >
+        </div>
+
+        <div class="switches-group">
+          <label>
+            <input type="checkbox" id="modo-invisivel" /> Ocultar Chrome
+          </label>
+          <label> <input type="checkbox" id="modo-teste" /> Vídeo (dev) </label>
+        </div>
+
+        <button
+          class="btn btn-primary"
+          id="btn-iniciar"
+          onclick="iniciarRobo()"
+        >
+          🚀 INICIAR AUTOMAÇÃO
+        </button>
+        <button
+          class="btn btn-danger hidden"
+          id="btn-parar"
+          onclick="pararRobo()"
+        >
+          🛑 PARAR AUTOMAÇÃO
+        </button>
+      </div>
+
+      <!-- Coluna Direita: Dados e Logs -->
+      <div class="card data-card">
+        <div class="header-docs">
+          <h2>📝 Texto do Planejamento</h2>
+          <button class="btn btn-warning" onclick="padronizarTexto()">
+            🧹 Padronizar
+          </button>
+        </div>
+
+        <textarea id="texto-docs" placeholder="Cole o texto aqui..."></textarea>
+
+        <h2>🖥️ Terminal de Execução</h2>
+        <textarea id="terminal-log" readonly></textarea>
+
+        <div class="progress-container">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="barra-progresso"></div>
+          </div>
+          <span id="texto-progresso" class="text-progress">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
