@@ -31,8 +31,8 @@ class AppAutomaEkyte(ctk.CTk):
         self.resizable(False, False)
 
         self.pasta_imagens = ""
-        self.is_running = False      # Controle de estado do robô
-        self.stop_requested = False  # Gatilho do botão de pânico
+        self.is_running = False      
+        self.stop_requested = False  
 
         self.criar_interface()
         self.carregar_config()
@@ -90,7 +90,18 @@ class AppAutomaEkyte(ctk.CTk):
         frame_dados = ctk.CTkFrame(self, corner_radius=10)
         frame_dados.pack(side="right", fill="both", expand=True, padx=(0, 20), pady=20)
 
-        ctk.CTkLabel(frame_dados, text="Texto do Planejamento (Google Docs):", font=("Segoe UI", 14, "bold")).pack(anchor="w", padx=20, pady=(20, 5))
+        # ==========================================
+        # HEADER DO DOCS COM BOTÃO DE PADRONIZAR
+        # ==========================================
+        frame_docs_header = ctk.CTkFrame(frame_dados, fg_color="transparent")
+        frame_docs_header.pack(fill="x", padx=20, pady=(20, 5))
+        
+        ctk.CTkLabel(frame_docs_header, text="Texto do Planejamento:", font=("Segoe UI", 14, "bold")).pack(side="left")
+        
+        self.btn_formatar = ctk.CTkButton(frame_docs_header, text="🧹 Padronizar Texto", width=140, height=28, font=("Segoe UI", 12, "bold"), fg_color="#10b981", hover_color="#059669", command=self.padronizar_texto)
+        self.btn_formatar.pack(side="right")
+        # ==========================================
+
         self.textbox_docs = ctk.CTkTextbox(frame_dados, height=200)
         self.textbox_docs.pack(padx=20, pady=(0, 15), fill="x")
 
@@ -139,7 +150,6 @@ class AppAutomaEkyte(ctk.CTk):
         self.textbox_log.configure(state="disabled")
         
     def atualizar_progresso_ui(self, valor, texto):
-        """Atualiza a barra de progresso e o texto (Thread safe)"""
         self.progressbar.set(valor)
         self.lbl_progresso.configure(text=texto)
 
@@ -166,6 +176,107 @@ class AppAutomaEkyte(ctk.CTk):
                 json.dump(cfg, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
+
+    # =============================================
+    # ★ SANITIZADOR DE TEXTO (Formatação Segura)
+    # =============================================
+    def padronizar_texto(self):
+        try:
+            conteudo = self.textbox_docs.get("1.0", "end").strip()
+            if not conteudo:
+                self.log("⚠️ Cole o texto na caixa antes de clicar em Padronizar.")
+                return
+
+            def formata_quebras(linha_texto):
+                tags = ["IDEIA/OBJETIVO DO CONTEÚDO:", "TEMA:", "HEADLINE:", "LEGENDA:"]
+                for tag in tags:
+                    # Correção aplicada: uso da flag re.IGNORECASE de forma segura
+                    padrao = re.compile(f"(?<!^)({re.escape(tag)})", flags=re.IGNORECASE)
+                    linha_texto = padrao.sub(r"\n\1", linha_texto)
+                return linha_texto
+
+            novo_conteudo = []
+            for linha in conteudo.split('\n'):
+                linha = linha.strip()
+                if linha:
+                    novo_conteudo.extend(formata_quebras(linha).split('\n'))
+
+            texto_limpo = []
+            precisa_mes = False
+            
+            for linha in novo_conteudo:
+                linha = linha.strip()
+                if not linha:
+                    continue
+                    
+                linha_lower = linha.lower()
+                if linha_lower.startswith(("data da publicação", "data da postagem", "dia ", "dia\t", "post ")):
+                    # Extrai os dois primeiros agrupamentos de números encontrados (dia e mês)
+                    match_data = re.search(r'(\d{1,2})(?:\s*/\s*(\d{1,2}))?', linha)
+                    if not match_data:
+                        texto_limpo.append(linha)
+                        continue
+                        
+                    dia = match_data.group(1).zfill(2)
+                    mes = match_data.group(2)
+                    
+                    if mes:
+                        mes = mes.zfill(2)
+                        nova_data = f"DATA DA PUBLICAÇÃO: {dia}/{mes}"
+                    else:
+                        precisa_mes = True
+                        nova_data = f"DATA DA PUBLICAÇÃO: {dia}/[MES]"
+                        
+                    if texto_limpo and texto_limpo[-1] != "":
+                        texto_limpo.append("") 
+                        
+                    texto_limpo.append(nova_data)
+                    
+                    # Limpa restos visuais na linha como " - CRIATIVO FEED:"
+                    fim_da_data_index = match_data.end()
+                    resto_da_linha = linha[fim_da_data_index:].strip()
+                    
+                    # Correção aplicada aqui também (uso do flags=re.IGNORECASE)
+                    resto_da_linha = re.sub(r'^(-\s*criativo feed\s*:?|:\s*|-\s*)', '', resto_da_linha, flags=re.IGNORECASE).strip()
+                    if resto_da_linha.startswith(':'):
+                        resto_da_linha = resto_da_linha[1:].strip()
+                        
+                    if resto_da_linha:
+                        texto_limpo.append(resto_da_linha)
+                else:
+                    texto_limpo.append(linha)
+
+            texto_final = "\n".join(texto_limpo).strip()
+
+            if precisa_mes:
+                mes_escolhido = None
+                if self.pasta_imagens and os.path.exists(self.pasta_imagens):
+                    for arq in os.listdir(self.pasta_imagens):
+                        m = re.search(r"\d{2}-(\d{2})\.", arq)
+                        if m:
+                            mes_inferido = m.group(1)
+                            msg = f"Identificamos que algumas postagens estão sem o mês.\n\nLocalizamos o mês '{mes_inferido}' nos arquivos da sua pasta de imagens.\n\nDeseja aplicar o mês {mes_inferido} para todas as datas incompletas?"
+                            if messagebox.askyesno("Mês Ausente Detectado", msg):
+                                mes_escolhido = mes_inferido
+                            break
+                
+                if not mes_escolhido:
+                    dialog = ctk.CTkInputDialog(text="Qual mês devemos usar para as datas que estão faltando? (Ex: 10)", title="Mês Ausente")
+                    res = dialog.get_input()
+                    if res and res.strip().isdigit():
+                        mes_escolhido = res.strip().zfill(2)
+                    else:
+                        self.log("⚠️ Padronização parcial: Mês não foi informado.")
+                        mes_escolhido = "[MES]"
+                        
+                texto_final = texto_final.replace("[MES]", mes_escolhido)
+
+            self.textbox_docs.delete("1.0", "end")
+            self.textbox_docs.insert("1.0", texto_final)
+            self.log("✨ Texto padronizado com sucesso! Revise antes de iniciar.")
+            
+        except Exception as e:
+            self.log(f"❌ Erro ao padronizar: {str(e)}")
 
     # =============================================
     # ★ O BOTÃO DO PÂNICO (Start / Stop)
@@ -211,7 +322,6 @@ class AppAutomaEkyte(ctk.CTk):
             thread.start()
 
     def verificar_parada(self):
-        """Dispara um erro forçado se o usuário clicar no botão de parada."""
         if self.stop_requested:
             raise InterruptedError("Automação abortada manualmente pelo usuário.")
 
@@ -357,9 +467,6 @@ class AppAutomaEkyte(ctk.CTk):
                 
                 self.verificar_parada()
 
-                # ==========================================
-                # LÓGICA INTELIGENTE DE MUDANÇA DE EMPRESA
-                # ==========================================
                 self.log("🏢 Verificando workspace ativo...")
                 btn_empresa = page.locator("div.menu-select-simple__link div[title*='Clique para trocar empresa']")
                 btn_empresa.wait_for(state="visible", timeout=15000)
@@ -392,9 +499,6 @@ class AppAutomaEkyte(ctk.CTk):
 
                 self.verificar_parada()
 
-                # ==========================================
-                # LÓGICA DO FILTRO DE DATA
-                # ==========================================
                 self.log("📅 Verificando filtro de data...")
                 btn_filtro_data = page.locator("button.DateRangePickerInput_calendarIcon").first
                 btn_filtro_data.wait_for(state="visible", timeout=10000)
@@ -430,9 +534,6 @@ class AppAutomaEkyte(ctk.CTk):
 
                     self.log(f"\n🔄 Processando Tarefa {index+1}/{total_tarefas}: {task['nome']}")
                     
-                    # ==========================================
-                    # VALIDAÇÃO DE SEGURANÇA DA TAREFA ATUAL
-                    # ==========================================
                     titulo_header = page.locator(".title-header").first
                     titulo_header.wait_for(state="visible", timeout=10000)
                     texto_titulo_atual = titulo_header.inner_text()
@@ -441,19 +542,15 @@ class AppAutomaEkyte(ctk.CTk):
                         self.log(f"⚠️ Atenção: A tarefa aberta '{texto_titulo_atual}' não é o template [ROBO].")
                         self.log("🔙 Fechando tarefa atual e buscando o próximo [ROBO] na lista...")
                         
-                        # Clica no botão de fechar a tarefa
                         page.locator("li.close-modal").first.click()
                         page.wait_for_timeout(2000)
                         
                         self.verificar_parada()
                         
-                        # Procura [ROBO] novamente na lista e entra
                         page.locator("text='[ROBO]'").first.click()
                         page.wait_for_timeout(3000)
                         
-                        # Aguarda o novo cabeçalho carregar antes de prosseguir
                         titulo_header.wait_for(state="visible", timeout=10000)
-                    # ==========================================
 
                     page.locator(".title-header").click()
                     page.locator(".title-input input").fill(task['nome'])
@@ -530,7 +627,6 @@ class AppAutomaEkyte(ctk.CTk):
                     else:
                         self.log(f"⚠️ {task['nome']} Retida (Aguardando Imagens do Carrossel).")
                     
-                    # Atualiza o progresso visualmente enviando o valor e o texto
                     progresso_atual = (index + 1) / total_tarefas
                     pct = int(progresso_atual * 100)
                     texto_progresso = f"{pct}% ({index + 1}/{total_tarefas})"
@@ -546,7 +642,6 @@ class AppAutomaEkyte(ctk.CTk):
                 self.log("\n🎉 AUTOMAÇÃO FINALIZADA COM SUCESSO!")
                 browser.close()
         
-        # TRATAMENTO EXCLUSIVO PARA O BOTÃO DE PARADA
         except InterruptedError as e:
             self.log(f"🛑 {str(e)}")
         except Exception as e:
