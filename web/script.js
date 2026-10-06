@@ -1,9 +1,21 @@
-// VARIÁVEL GLOBAL
 let pastaSelecionada = "";
 
-// 1. Funções que o HTML chama (Envia para o Python)
+// Carrega os dados salvos do JSON automaticamente ao abrir o app
+window.addEventListener("DOMContentLoaded", async () => {
+    let config = await eel.carregar_config_py()();
+    if (config) {
+        document.getElementById("email").value = config.email;
+        document.getElementById("senha").value = config.senha;
+        if (config.pasta_imagens) {
+            pastaSelecionada = config.pasta_imagens;
+            let caminhoCurto = pastaSelecionada.length > 30 ? ".../" + pastaSelecionada.split(/[\\/]/).pop() : pastaSelecionada;
+            document.getElementById("caminho-pasta").innerText = caminhoCurto;
+        }
+    }
+});
+
 async function escolherPasta() {
-    let caminho = await eel.selecionar_pasta_py()(); // Chama a função no Python
+    let caminho = await eel.selecionar_pasta_py()();
     if (caminho) {
         pastaSelecionada = caminho;
         document.getElementById("caminho-pasta").innerText = caminho.length > 30 ? ".../" + caminho.split(/[\\/]/).pop() : caminho;
@@ -16,12 +28,10 @@ async function iniciarRobo() {
     let texto = document.getElementById("texto-docs").value;
     let modoInvisivel = document.getElementById("modo-invisivel").checked;
     
-    // Opcional: Adicionar validações de campos vazios aqui no JS antes de mandar pro Python
-
     document.getElementById("btn-iniciar").classList.add("hidden");
     document.getElementById("btn-parar").classList.remove("hidden");
+    document.getElementById("btn-parar").innerText = "🛑 PARAR AUTOMAÇÃO";
 
-    // Aciona a automação no Python
     await eel.iniciar_automacao_py(email, senha, pastaSelecionada, texto, modoInvisivel)();
 }
 
@@ -38,12 +48,11 @@ async function padronizarTexto() {
     }
 }
 
-// 2. Funções que o Python chama (Altera o HTML)
 eel.expose(atualizarLog);
 function atualizarLog(mensagem) {
     let terminal = document.getElementById("terminal-log");
     terminal.value += mensagem + "\n";
-    terminal.scrollTop = terminal.scrollHeight; // Rola pro final
+    terminal.scrollTop = terminal.scrollHeight;
 }
 
 eel.expose(atualizarProgresso);
@@ -56,5 +65,4 @@ eel.expose(restaurarBotoes);
 function restaurarBotoes() {
     document.getElementById("btn-iniciar").classList.remove("hidden");
     document.getElementById("btn-parar").classList.add("hidden");
-    document.getElementById("btn-parar").innerText = "🛑 PARAR AUTOMAÇÃO";
 }
