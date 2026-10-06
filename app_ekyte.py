@@ -4,6 +4,7 @@ os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "0"
 import re
 import sys
 import json
+import base64
 import threading
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
@@ -125,7 +126,7 @@ class AppAutomaEkyte(ctk.CTk):
         # ==========================================
 
     # =============================================
-    # ★ CONTROLES DA INTERFACE
+    # ★ CONTROLES DA INTERFACE E ARQUIVO
     # =============================================
     def toggle_senha(self):
         if self.entry_senha.cget("show") == "*":
@@ -158,10 +159,22 @@ class AppAutomaEkyte(ctk.CTk):
             if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     cfg = json.load(f)
+                
                 email_salvo = cfg.get("email", "")
+                senha_salva = cfg.get("senha", "")
                 pasta_salva = cfg.get("pasta_imagens", "")
+                
                 if email_salvo:
                     self.entry_email.insert(0, email_salvo)
+                
+                # Decodifica a senha base64 para texto legível na interface
+                if senha_salva:
+                    try:
+                        senha_limpa = base64.b64decode(senha_salva.encode('utf-8')).decode('utf-8')
+                        self.entry_senha.insert(0, senha_limpa)
+                    except Exception:
+                        pass # Ignora se a codificação estiver corrompida
+
                 if pasta_salva and os.path.isdir(pasta_salva):
                     self.pasta_imagens = pasta_salva
                     caminho_curto = ".../" + os.path.basename(pasta_salva) if len(pasta_salva) > 30 else pasta_salva
@@ -171,7 +184,15 @@ class AppAutomaEkyte(ctk.CTk):
 
     def salvar_config(self):
         try:
-            cfg = {"email": self.entry_email.get().strip(), "pasta_imagens": self.pasta_imagens}
+            senha_atual = self.entry_senha.get().strip()
+            # Codifica a senha em base64 (ofuscação) para não ficar legível no bloco de notas
+            senha_b64 = base64.b64encode(senha_atual.encode('utf-8')).decode('utf-8') if senha_atual else ""
+
+            cfg = {
+                "email": self.entry_email.get().strip(), 
+                "senha": senha_b64,
+                "pasta_imagens": self.pasta_imagens
+            }
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, ensure_ascii=False, indent=2)
         except Exception:
@@ -190,7 +211,6 @@ class AppAutomaEkyte(ctk.CTk):
             def formata_quebras(linha_texto):
                 tags = ["IDEIA/OBJETIVO DO CONTEÚDO:", "TEMA:", "HEADLINE:", "LEGENDA:"]
                 for tag in tags:
-                    # Correção aplicada: uso da flag re.IGNORECASE de forma segura
                     padrao = re.compile(f"(?<!^)({re.escape(tag)})", flags=re.IGNORECASE)
                     linha_texto = padrao.sub(r"\n\1", linha_texto)
                 return linha_texto
@@ -211,7 +231,6 @@ class AppAutomaEkyte(ctk.CTk):
                     
                 linha_lower = linha.lower()
                 if linha_lower.startswith(("data da publicação", "data da postagem", "dia ", "dia\t", "post ")):
-                    # Extrai os dois primeiros agrupamentos de números encontrados (dia e mês)
                     match_data = re.search(r'(\d{1,2})(?:\s*/\s*(\d{1,2}))?', linha)
                     if not match_data:
                         texto_limpo.append(linha)
@@ -232,11 +251,9 @@ class AppAutomaEkyte(ctk.CTk):
                         
                     texto_limpo.append(nova_data)
                     
-                    # Limpa restos visuais na linha como " - CRIATIVO FEED:"
                     fim_da_data_index = match_data.end()
                     resto_da_linha = linha[fim_da_data_index:].strip()
                     
-                    # Correção aplicada aqui também (uso do flags=re.IGNORECASE)
                     resto_da_linha = re.sub(r'^(-\s*criativo feed\s*:?|:\s*|-\s*)', '', resto_da_linha, flags=re.IGNORECASE).strip()
                     if resto_da_linha.startswith(':'):
                         resto_da_linha = resto_da_linha[1:].strip()
@@ -299,15 +316,49 @@ class AppAutomaEkyte(ctk.CTk):
                 self.log("❌ ERRO: Cole o texto do Google Docs na caixa acima.")
                 return
 
+            # Ao clicar em iniciar, a senha também é salva no JSON
             self.salvar_config()
 
-            self.log("🔍 Analisando texto para pré-check de imagens...")
+            self.log("🔍 Extraindo tarefas do texto...")
             tarefas_preview = self.extrair_dados_do_texto(conteudo_texto)
 
             if not tarefas_preview:
                 self.log("❌ Nenhuma tarefa válida encontrada (ou todas eram vídeos).")
                 return
 
+            # ==========================================
+            # RESUMO DE TAREFAS (POP-UP)
+            # ==========================================
+            qtd_feed = 0
+            qtd_story = 0
+            qtd_carrossel = 0
+
+            for task in tarefas_preview:
+                for tipo in task['tipos_formulario']:
+                    tipo_min = tipo.lower()
+                    if 'carrossel' in tipo_min:
+                        qtd_carrossel += 1
+                    elif 'story' in tipo_min or 'reel' in tipo_min or 'tiktok' in tipo_min or 'short' in tipo_min:
+                        qtd_story += 1
+                    elif 'feed' in tipo_min:
+                        qtd_feed += 1
+
+            msg_resumo = (
+                f"O robô identificou {len(tarefas_preview)} postagem(ns) neste lote.\n\n"
+                f"Isso irá gerar os seguintes formulários:\n"
+                f"   • Feed: {qtd_feed}\n"
+                f"   • Stories/Reels: {qtd_story}\n"
+                f"   • Carrossel: {qtd_carrossel}\n\n"
+                "Deseja iniciar a automação para estas tarefas?"
+            )
+            
+            resposta_resumo = messagebox.askyesno("Resumo das Tarefas", msg_resumo, icon="info")
+            if not resposta_resumo:
+                self.log("🛑 Automação cancelada pelo usuário no resumo de tarefas.")
+                return
+            # ==========================================
+
+            # Faz a auditoria das imagens
             if not self.pre_check_imagens(tarefas_preview):
                 return
 
