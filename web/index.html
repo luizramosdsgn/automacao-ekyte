@@ -15,12 +15,12 @@
         <h2>⚙️ Configurações</h2>
 
         <div class="input-group">
-          <label>E-mail do eKyte:</label>
+          <label for="email">E-mail do eKyte:</label>
           <input type="email" id="email" placeholder="seu@email.com" />
         </div>
 
         <div class="input-group">
-          <label>Senha do eKyte:</label>
+          <label for="senha">Senha do eKyte:</label>
           <input type="password" id="senha" placeholder="Sua senha" />
         </div>
 
@@ -66,13 +66,13 @@
           </button>
         </div>
 
-        <textarea id="texto-docs" placeholder="Cole o texto aqui..."></textarea>
+        <textarea id="texto-docs" aria-label="Texto do planejamento" placeholder="Cole o texto aqui..."></textarea>
 
         <h2>🖥️ Terminal de Execução</h2>
-        <textarea id="terminal-log" readonly></textarea>
+        <textarea id="terminal-log" aria-label="Terminal de execução" readonly></textarea>
 
         <div class="progress-container">
-          <div class="progress-bar-bg">
+          <div class="progress-bar-bg" id="progress-bar-bg" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Progresso da automação">
             <div class="progress-bar-fill" id="barra-progresso"></div>
           </div>
           <span id="texto-progresso" class="text-progress">0%</span>

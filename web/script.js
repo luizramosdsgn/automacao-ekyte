@@ -59,6 +59,10 @@ eel.expose(atualizarProgresso);
 function atualizarProgresso(porcentagem, texto) {
     document.getElementById("barra-progresso").style.width = porcentagem + "%";
     document.getElementById("texto-progresso").innerText = texto;
+    let progressBg = document.getElementById("progress-bar-bg");
+    if (progressBg) {
+        progressBg.setAttribute("aria-valuenow", porcentagem);
+    }
 }
 
 eel.expose(restaurarBotoes);
