@@ -58,6 +58,10 @@ function atualizarLog(mensagem) {
 eel.expose(atualizarProgresso);
 function atualizarProgresso(porcentagem, texto) {
     document.getElementById("barra-progresso").style.width = porcentagem + "%";
+    let container = document.getElementById("barra-progresso-container");
+    if (container) {
+        container.setAttribute("aria-valuenow", porcentagem);
+    }
     document.getElementById("texto-progresso").innerText = texto;
 }
 
