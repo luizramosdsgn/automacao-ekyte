@@ -9,7 +9,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         if (config.pasta_imagens) {
             pastaSelecionada = config.pasta_imagens;
             let caminhoCurto = pastaSelecionada.length > 30 ? ".../" + pastaSelecionada.split(/[\\/]/).pop() : pastaSelecionada;
-            document.getElementById("caminho-pasta").innerText = caminhoCurto;
+            let elemCaminho = document.getElementById("caminho-pasta");
+            elemCaminho.innerText = caminhoCurto;
+            elemCaminho.title = pastaSelecionada;
         }
     }
 });
@@ -18,7 +20,9 @@ async function escolherPasta() {
     let caminho = await eel.selecionar_pasta_py()();
     if (caminho) {
         pastaSelecionada = caminho;
-        document.getElementById("caminho-pasta").innerText = caminho.length > 30 ? ".../" + caminho.split(/[\\/]/).pop() : caminho;
+        let elemCaminho = document.getElementById("caminho-pasta");
+        elemCaminho.innerText = caminho.length > 30 ? ".../" + caminho.split(/[\\/]/).pop() : caminho;
+        elemCaminho.title = caminho;
     }
 }
 
