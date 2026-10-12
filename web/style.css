@@ -93,7 +93,29 @@ textarea {
 .btn-secondary:hover { background-color: #059669; }
 
 .btn-warning { background-color: #10b981; color: white; padding: 6px 12px; }
+.btn-warning:hover { background-color: #059669; }
 .btn-danger { background-color: #ef4444; color: white; }
+.btn-danger:hover { background-color: #dc2626; }
+
+.switches-group {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.switches-group label {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #3179FF;
+}
 
 .hidden { display: none; }
 
