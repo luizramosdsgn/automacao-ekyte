@@ -38,7 +38,7 @@
 
         <div class="input-group">
           <label id="label-pasta">Pasta das Imagens:</label>
-          <button type="button" class="btn btn-secondary" aria-labelledby="label-pasta" onclick="escolherPasta()">
+          <button type="button" id="btn-pasta" class="btn btn-secondary" aria-labelledby="label-pasta" onclick="escolherPasta()">
             📁 Escolher Diretório
           </button>
           <span id="caminho-pasta" class="text-muted" title="Nenhuma pasta selecionada"
@@ -75,7 +75,7 @@
       <div class="card data-card">
         <div class="header-docs">
           <h2>📝 Texto do Planejamento</h2>
-          <button type="button" class="btn btn-warning" onclick="padronizarTexto()">
+          <button type="button" id="btn-formatar" class="btn btn-warning" onclick="padronizarTexto()" title="Organizar e formatar o texto do planejamento automaticamente">
             🧹 Padronizar
           </button>
         </div>
