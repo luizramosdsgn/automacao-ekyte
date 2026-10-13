@@ -35,12 +35,17 @@ async function iniciarRobo() {
     document.getElementById("btn-iniciar").classList.add("hidden");
     document.getElementById("btn-parar").classList.remove("hidden");
     document.getElementById("btn-parar").innerText = "🛑 PARAR AUTOMAÇÃO";
+    document.getElementById("btn-parar").disabled = false;
+    document.getElementById("btn-pasta").disabled = true;
+    document.getElementById("btn-formatar").disabled = true;
 
     await eel.iniciar_automacao_py(email, senha, pastaSelecionada, texto, modoInvisivel)();
 }
 
 async function pararRobo() {
-    document.getElementById("btn-parar").innerText = "🛑 CANCELANDO...";
+    let btnParar = document.getElementById("btn-parar");
+    btnParar.innerText = "🛑 CANCELANDO...";
+    btnParar.disabled = true;
     await eel.parar_automacao_py()();
 }
 
@@ -90,4 +95,7 @@ eel.expose(restaurarBotoes);
 function restaurarBotoes() {
     document.getElementById("btn-iniciar").classList.remove("hidden");
     document.getElementById("btn-parar").classList.add("hidden");
+    document.getElementById("btn-parar").disabled = false;
+    document.getElementById("btn-pasta").disabled = false;
+    document.getElementById("btn-formatar").disabled = false;
 }
