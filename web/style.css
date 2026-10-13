@@ -51,13 +51,44 @@ h2 {
     gap: 5px;
 }
 
-input[type="email"], input[type="password"], textarea {
+input[type="email"], input[type="password"], input[type="text"], textarea {
     background-color: #3b3b3b;
     border: 1px solid #444;
     color: white;
     padding: 10px;
     border-radius: 5px;
     font-size: 14px;
+}
+
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-wrapper input {
+    width: 100%;
+    padding-right: 40px;
+}
+
+.btn-icon {
+    position: absolute;
+    right: 5px;
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.btn-icon:hover {
+    background-color: #4a4a4a;
 }
 
 input:focus-visible, textarea:focus-visible, button:focus-visible {

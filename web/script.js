@@ -52,6 +52,23 @@ async function padronizarTexto() {
     }
 }
 
+function alternarVisibilidadeSenha() {
+    let campoSenha = document.getElementById("senha");
+    let btnToggle = document.getElementById("btn-toggle-senha");
+
+    if (campoSenha.type === "password") {
+        campoSenha.type = "text";
+        btnToggle.innerText = "🙈";
+        btnToggle.setAttribute("aria-label", "Ocultar senha");
+        btnToggle.title = "Ocultar senha";
+    } else {
+        campoSenha.type = "password";
+        btnToggle.innerText = "👁️";
+        btnToggle.setAttribute("aria-label", "Mostrar senha");
+        btnToggle.title = "Mostrar senha";
+    }
+}
+
 eel.expose(atualizarLog);
 function atualizarLog(mensagem) {
     let terminal = document.getElementById("terminal-log");
