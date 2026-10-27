@@ -454,6 +454,12 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                             verificar_parada()
                             page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
                             verificar_parada()
+
+                            if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
+                                log_to_ui("   ⏳ Aguardando processamento da imagem do Story...")
+                                page.wait_for_timeout(2500)
+                                verificar_parada()
+
                             page.locator("button.btn-primary:has-text('Adicionar')").click()
                             page.wait_for_timeout(1000)
                     else:
