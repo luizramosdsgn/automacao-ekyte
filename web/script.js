@@ -9,7 +9,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         if (config.pasta_imagens) {
             pastaSelecionada = config.pasta_imagens;
             let caminhoCurto = pastaSelecionada.length > 30 ? ".../" + pastaSelecionada.split(/[\\/]/).pop() : pastaSelecionada;
-            document.getElementById("caminho-pasta").innerText = caminhoCurto;
+            let elemCaminho = document.getElementById("caminho-pasta");
+            elemCaminho.innerText = caminhoCurto;
+            elemCaminho.title = pastaSelecionada;
         }
     }
 });
@@ -18,7 +20,9 @@ async function escolherPasta() {
     let caminho = await eel.selecionar_pasta_py()();
     if (caminho) {
         pastaSelecionada = caminho;
-        document.getElementById("caminho-pasta").innerText = caminho.length > 30 ? ".../" + caminho.split(/[\\/]/).pop() : caminho;
+        let elemCaminho = document.getElementById("caminho-pasta");
+        elemCaminho.innerText = caminho.length > 30 ? ".../" + caminho.split(/[\\/]/).pop() : caminho;
+        elemCaminho.title = caminho;
     }
 }
 
@@ -31,12 +35,17 @@ async function iniciarRobo() {
     document.getElementById("btn-iniciar").classList.add("hidden");
     document.getElementById("btn-parar").classList.remove("hidden");
     document.getElementById("btn-parar").innerText = "🛑 PARAR AUTOMAÇÃO";
+    document.getElementById("btn-parar").disabled = false;
+    document.getElementById("btn-pasta").disabled = true;
+    document.getElementById("btn-formatar").disabled = true;
 
     await eel.iniciar_automacao_py(email, senha, pastaSelecionada, texto, modoInvisivel)();
 }
 
 async function pararRobo() {
-    document.getElementById("btn-parar").innerText = "🛑 CANCELANDO...";
+    let btnParar = document.getElementById("btn-parar");
+    btnParar.innerText = "🛑 CANCELANDO...";
+    btnParar.disabled = true;
     await eel.parar_automacao_py()();
 }
 
@@ -45,6 +54,23 @@ async function padronizarTexto() {
     let textoLimpo = await eel.padronizar_texto_py(texto, pastaSelecionada)();
     if(textoLimpo) {
         document.getElementById("texto-docs").value = textoLimpo;
+    }
+}
+
+function alternarVisibilidadeSenha() {
+    let campoSenha = document.getElementById("senha");
+    let btnToggle = document.getElementById("btn-toggle-senha");
+
+    if (campoSenha.type === "password") {
+        campoSenha.type = "text";
+        btnToggle.innerText = "🙈";
+        btnToggle.setAttribute("aria-label", "Ocultar senha");
+        btnToggle.title = "Ocultar senha";
+    } else {
+        campoSenha.type = "password";
+        btnToggle.innerText = "👁️";
+        btnToggle.setAttribute("aria-label", "Mostrar senha");
+        btnToggle.title = "Mostrar senha";
     }
 }
 
@@ -58,6 +84,10 @@ function atualizarLog(mensagem) {
 eel.expose(atualizarProgresso);
 function atualizarProgresso(porcentagem, texto) {
     document.getElementById("barra-progresso").style.width = porcentagem + "%";
+    let container = document.getElementById("barra-progresso-container");
+    if (container) {
+        container.setAttribute("aria-valuenow", porcentagem);
+    }
     document.getElementById("texto-progresso").innerText = texto;
 }
 
@@ -65,4 +95,7 @@ eel.expose(restaurarBotoes);
 function restaurarBotoes() {
     document.getElementById("btn-iniciar").classList.remove("hidden");
     document.getElementById("btn-parar").classList.add("hidden");
+    document.getElementById("btn-parar").disabled = false;
+    document.getElementById("btn-pasta").disabled = false;
+    document.getElementById("btn-formatar").disabled = false;
 }

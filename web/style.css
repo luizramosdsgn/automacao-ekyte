@@ -51,13 +51,49 @@ h2 {
     gap: 5px;
 }
 
-input[type="email"], input[type="password"], textarea {
+input[type="email"], input[type="password"], input[type="text"], textarea {
     background-color: #3b3b3b;
     border: 1px solid #444;
     color: white;
     padding: 10px;
     border-radius: 5px;
     font-size: 14px;
+}
+
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-wrapper input {
+    width: 100%;
+    padding-right: 40px;
+}
+
+.btn-icon {
+    position: absolute;
+    right: 5px;
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.btn-icon:hover {
+    background-color: #4a4a4a;
+}
+
+input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid #3179FF;
+    outline-offset: 2px;
 }
 
 textarea {
@@ -81,6 +117,12 @@ textarea {
     transition: 0.2s;
 }
 
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .btn-primary { background-color: #3179FF; color: white; }
 .btn-primary:hover { background-color: #2562d4; }
 
@@ -88,7 +130,31 @@ textarea {
 .btn-secondary:hover { background-color: #059669; }
 
 .btn-warning { background-color: #10b981; color: white; padding: 6px 12px; }
+.btn-warning:hover { background-color: #059669; }
 .btn-danger { background-color: #ef4444; color: white; }
+.btn-danger:hover { background-color: #dc2626; }
+
+.switches-group {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.switches-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.switches-group input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #3179FF;
+    width: 16px;
+    height: 16px;
+}
 
 .hidden { display: none; }
 

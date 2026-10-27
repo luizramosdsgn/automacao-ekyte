@@ -15,21 +15,33 @@
         <h2>⚙️ Configurações</h2>
 
         <div class="input-group">
-          <label>E-mail do eKyte:</label>
+          <label for="email">E-mail do eKyte:</label>
           <input type="email" id="email" placeholder="seu@email.com" />
         </div>
 
         <div class="input-group">
-          <label>Senha do eKyte:</label>
-          <input type="password" id="senha" placeholder="Sua senha" />
+          <label for="senha">Senha do eKyte:</label>
+          <div class="password-wrapper">
+            <input type="password" id="senha" placeholder="Sua senha" />
+            <button
+              type="button"
+              id="btn-toggle-senha"
+              class="btn-icon"
+              aria-label="Mostrar senha"
+              title="Mostrar senha"
+              onclick="alternarVisibilidadeSenha()"
+            >
+              👁️
+            </button>
+          </div>
         </div>
 
         <div class="input-group">
-          <label>Pasta das Imagens:</label>
-          <button class="btn btn-secondary" onclick="escolherPasta()">
+          <label id="label-pasta">Pasta das Imagens:</label>
+          <button type="button" id="btn-pasta" class="btn btn-secondary" aria-labelledby="label-pasta" onclick="escolherPasta()">
             📁 Escolher Diretório
           </button>
-          <span id="caminho-pasta" class="text-muted"
+          <span id="caminho-pasta" class="text-muted" title="Nenhuma pasta selecionada"
             >Nenhuma pasta selecionada</span
           >
         </div>
@@ -42,6 +54,7 @@
         </div>
 
         <button
+          type="button"
           class="btn btn-primary"
           id="btn-iniciar"
           onclick="iniciarRobo()"
@@ -49,6 +62,7 @@
           🚀 INICIAR AUTOMAÇÃO
         </button>
         <button
+          type="button"
           class="btn btn-danger hidden"
           id="btn-parar"
           onclick="pararRobo()"
@@ -61,18 +75,18 @@
       <div class="card data-card">
         <div class="header-docs">
           <h2>📝 Texto do Planejamento</h2>
-          <button class="btn btn-warning" onclick="padronizarTexto()">
+          <button type="button" id="btn-formatar" class="btn btn-warning" onclick="padronizarTexto()" title="Organizar e formatar o texto do planejamento automaticamente">
             🧹 Padronizar
           </button>
         </div>
 
-        <textarea id="texto-docs" placeholder="Cole o texto aqui..."></textarea>
+        <textarea id="texto-docs" aria-label="Texto do planejamento" placeholder="Cole o texto aqui..."></textarea>
 
         <h2>🖥️ Terminal de Execução</h2>
-        <textarea id="terminal-log" readonly></textarea>
+        <textarea id="terminal-log" aria-label="Terminal de execução" role="log" aria-live="polite" readonly></textarea>
 
         <div class="progress-container">
-          <div class="progress-bar-bg">
+          <div class="progress-bar-bg" role="progressbar" id="barra-progresso-container" aria-label="Progresso da automação" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
             <div class="progress-bar-fill" id="barra-progresso"></div>
           </div>
           <span id="texto-progresso" class="text-progress">0%</span>
