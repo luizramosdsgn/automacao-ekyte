@@ -11,6 +11,7 @@ O **Robô eKyte** é uma ferramenta de automação desktop que automatiza a cria
 ### Problema que resolve
 
 O processo manual de cadastrar postagens no eKyte envolve repetição exaustiva:
+
 - Criar tarefas uma a uma
 - Preencher data, título, descrição
 - Selecionar tipo de formulário (Feed, Story, Carrossel)
@@ -55,7 +56,7 @@ O projeto possui **duas versões da interface** que compartilham a mesma lógica
 ```
 Usuário preenche:
 ├── E-mail do eKyte
-├── Senha do eKyte  
+├── Senha do eKyte
 ├── Pasta local de imagens (picker nativo)
 └── Opções:
     ├── Ocultar Chrome (headless mode)
@@ -180,33 +181,33 @@ A execução ocorre em **thread separada** para não travar a interface:
 
 ### Python → JavaScript (eel.js)
 
-| Função JS              | Propósito                         |
-|------------------------|-----------------------------------|
-| `eel.atualizarLog(msg)` | Adiciona mensagem ao terminal     |
-| `eel.atualizarProgresso(pct, texto)` | Atualiza barra de progresso |
-| `eel.restaurarBotoes()` | Restaura estado dos botões        |
+| Função JS                            | Propósito                     |
+| ------------------------------------ | ----------------------------- |
+| `eel.atualizarLog(msg)`              | Adiciona mensagem ao terminal |
+| `eel.atualizarProgresso(pct, texto)` | Atualiza barra de progresso   |
+| `eel.restaurarBotoes()`              | Restaura estado dos botões    |
 
 ### JavaScript → Python (@eel.expose)
 
-| Função Python               | Propósito                             |
-|-----------------------------|---------------------------------------|
-| `carregar_config_py()`      | Carrega config.json                   |
-| `selecionar_pasta_py()`     | Abre picker de pasta (tkinter)        |
-| `parar_automacao_py()`      | Seta flag de parada                   |
-| `padronizar_texto_py(texto, pasta)` | Sanitiza o texto colado       |
-| `iniciar_automacao_py(...)` | Dispara a automação em thread         |
+| Função Python                       | Propósito                      |
+| ----------------------------------- | ------------------------------ |
+| `carregar_config_py()`              | Carrega config.json            |
+| `selecionar_pasta_py()`             | Abre picker de pasta (tkinter) |
+| `parar_automacao_py()`              | Seta flag de parada            |
+| `padronizar_texto_py(texto, pasta)` | Sanitiza o texto colado        |
+| `iniciar_automacao_py(...)`         | Dispara a automação em thread  |
 
 ---
 
 ## 5. Dependências
 
-| Pacote           | Versão Mínima | Uso                                |
-|------------------|---------------|------------------------------------|
-| `customtkinter`  | ≥ 5.2.0       | GUI desktop (app_ekyte.py)         |
-| `playwright`     | ≥ 1.40.0      | Automação de navegador             |
-| `pyinstaller`    | ≥ 6.0.0       | Build do .exe                      |
-| `eel`            | ≥ 0.18.2      | Bridge Python↔HTML (app_web.py)    |
-| `setuptools`     | ≥ 84.0.0      | Build tools                        |
+| Pacote          | Versão Mínima | Uso                             |
+| --------------- | ------------- | ------------------------------- |
+| `customtkinter` | ≥ 5.2.0       | GUI desktop (app_ekyte.py)      |
+| `playwright`    | ≥ 1.40.0      | Automação de navegador          |
+| `pyinstaller`   | ≥ 6.0.0       | Build do .exe                   |
+| `eel`           | ≥ 0.18.2      | Bridge Python↔HTML (app_web.py) |
+| `setuptools`    | ≥ 84.0.0      | Build tools                     |
 
 ### Requisitos do Sistema
 
@@ -294,4 +295,3 @@ python -m PyInstaller --noconsole --onefile --collect-all playwright --add-data 
 - [ ] **Integração com Figma:** Baixar imagens diretamente do Figma por link do frame
 - [ ] **API REST local:** Expor endpoints para integração com outros sistemas (Zapier, Make, n8n)
 - [ ] **Plugin de browser:** Extensão Chrome que injeta um botão "Enviar pro Robô" no Google Docs
-
