@@ -7,7 +7,7 @@ import json
 import base64
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog
 import eel
 from playwright.sync_api import sync_playwright
 
@@ -16,6 +16,39 @@ if getattr(sys, 'frozen', False):
 else:
     _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(_BASE_DIR, "config.json")
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
+CAROUSEL_MIN_IMAGES = 2
+
+
+def chave_ordenacao_natural(valor):
+    return tuple(
+        (1, int(parte)) if parte.isdigit() else (0, parte.casefold())
+        for parte in re.split(r"(\d+)", valor)
+    )
+
+
+def instalar_chromium_se_necessario(avisar):
+    with sync_playwright() as playwright:
+        executavel = playwright.chromium.executable_path
+
+    if os.path.isfile(executavel):
+        return
+
+    avisar("Chromium não encontrado. Instalando automaticamente...")
+    from playwright._impl.__main__ import main as playwright_main
+
+    argumentos_originais = sys.argv
+    sys.argv = ["playwright", "install", "chromium"]
+    try:
+        try:
+            playwright_main()
+        except SystemExit as erro:
+            if erro.code not in (None, 0):
+                raise RuntimeError("Não foi possível instalar o Chromium.") from erro
+    finally:
+        sys.argv = argumentos_originais
+
+    avisar("Instalação do Chromium concluída.")
 
 stop_requested = False
 is_running = False
@@ -60,6 +93,11 @@ def salvar_config(email, senha, pasta):
             json.dump(cfg, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
+
+
+@eel.expose
+def salvar_config_py(email, senha, pasta):
+    salvar_config(email, senha, pasta)
 
 @eel.expose
 def selecionar_pasta_py():
@@ -157,8 +195,23 @@ def padronizar_texto_py(conteudo, pasta_imagens):
                         break
             
             if not mes_escolhido:
-                log_to_ui("⚠️ Insira o mês manualmente trocando o [MES] no texto.")
-                mes_escolhido = "[MES]"
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes('-topmost', True)
+                try:
+                    resposta = simpledialog.askstring(
+                        "Mês Ausente",
+                        "Qual mês devemos usar para as datas que estão faltando? (Ex: 10)",
+                        parent=root,
+                    )
+                finally:
+                    root.destroy()
+
+                if resposta and resposta.strip().isdigit():
+                    mes_escolhido = resposta.strip().zfill(2)
+                else:
+                    log_to_ui("Padronização parcial: mês não informado.")
+                    mes_escolhido = "[MES]"
                     
             texto_final = texto_final.replace("[MES]", mes_escolhido)
 
@@ -243,9 +296,13 @@ def pre_check_imagens(tarefas, pasta_imagens):
     faltando = []
     for task in tarefas:
         for tipo_form in task["tipos_formulario"]:
-            if "Carrossel" in tipo_form:
-                continue
-            if not buscar_imagens(task["nome"], tipo_form, pasta_imagens):
+            imagens = buscar_imagens(task["nome"], tipo_form, pasta_imagens)
+            is_carrossel = "carrossel" in tipo_form.lower()
+            if is_carrossel and len(imagens) < CAROUSEL_MIN_IMAGES:
+                faltando.append(
+                    f"  • {task['nome']} (Carrossel: {len(imagens)}/{CAROUSEL_MIN_IMAGES} imagens)"
+                )
+            elif not is_carrossel and not imagens:
                 tipo_curto = "Story" if "Story" in tipo_form else "Feed"
                 faltando.append(f"  • {task['nome']} ({tipo_curto})")
 
@@ -283,6 +340,7 @@ def extrair_dados_do_texto(conteudo):
     for bloco in blocos:
         texto_completo = "DATA DA PUBLICAÇÃO:" + bloco.strip()
         if "vídeo" in texto_completo.lower() or "video" in texto_completo.lower():
+            log_to_ui("Tarefa ignorada (conteúdo em vídeo detectado).")
             continue 
         data_match = re.search(r'(\d{2}/\d{2})', bloco)
         if data_match:
@@ -297,28 +355,123 @@ def extrair_dados_do_texto(conteudo):
     return tarefas
 
 def buscar_imagens(nome_tarefa, tipo_form, pasta_imagens):
-    if not os.path.exists(pasta_imagens): return []
-    is_story = "story" in tipo_form.lower()
-    is_feed = "feed" in tipo_form.lower()
-    candidatos = [f for f in os.listdir(pasta_imagens) if nome_tarefa in f]
-    
-    for c in candidatos:
-        caminho = os.path.join(pasta_imagens, c)
-        nome_sem_ext = os.path.splitext(c)[0].lower()
-        if os.path.isfile(caminho) and c.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-            if is_story and any(k in nome_sem_ext for k in ["story", "stories", "storie"]): return [caminho]
-            if is_feed and "feed" in nome_sem_ext: return [caminho]
+    tipo_form_lower = tipo_form.casefold()
+    is_carrossel = "carrossel" in tipo_form_lower or "carousel" in tipo_form_lower
+    is_story = any(palavra in tipo_form_lower for palavra in ("story", "stories", "storie"))
+    is_feed = "feed" in tipo_form_lower
 
-    for c in candidatos:
-        caminho = os.path.join(pasta_imagens, c)
-        if os.path.isfile(caminho) and c.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')) and os.path.splitext(c)[0].lower() == nome_tarefa:
-            return [caminho]
+    if not os.path.isdir(pasta_imagens):
+        return []
 
-    for c in candidatos:
-        caminho = os.path.join(pasta_imagens, c)
-        if os.path.isdir(caminho):
-            if (is_story and any(k in c.lower() for k in ["story", "stories", "storie"])) or (is_feed and "feed" in c.lower()) or (c.lower() == nome_tarefa):
-                return [os.path.join(caminho, f) for f in os.listdir(caminho) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+    try:
+        todos_arquivos = sorted(os.listdir(pasta_imagens), key=chave_ordenacao_natural)
+    except OSError:
+        return []
+
+    def normalizar_nome(valor):
+        return re.sub(r"[^a-z0-9]+", "-", valor.casefold()).strip("-")
+
+    nome_tarefa_normalizado = normalizar_nome(nome_tarefa)
+    partes_tarefa = nome_tarefa_normalizado.split("-")
+
+    def contem_tarefa(nome):
+        partes_nome = normalizar_nome(nome).split("-")
+        return any(
+            partes_nome[indice:indice + len(partes_tarefa)] == partes_tarefa
+            for indice in range(max(0, len(partes_nome) - len(partes_tarefa) + 1))
+        )
+
+    def listar_imagens(pasta):
+        try:
+            nomes_imagem = [
+                nome for nome in os.listdir(pasta)
+                if os.path.isfile(os.path.join(pasta, nome))
+                and nome.casefold().endswith(IMAGE_EXTENSIONS)
+            ]
+        except OSError:
+            return []
+        return [
+            os.path.join(pasta, nome)
+            for nome in sorted(nomes_imagem, key=chave_ordenacao_natural)
+        ]
+
+    pastas = [
+        nome for nome in todos_arquivos
+        if os.path.isdir(os.path.join(pasta_imagens, nome))
+    ]
+
+    if is_carrossel:
+        pastas_carrossel = []
+        pastas_compativeis = []
+        palavras_story = ("story", "stories", "storie")
+
+        for nome in pastas:
+            if not contem_tarefa(nome):
+                continue
+
+            partes_nome = normalizar_nome(nome).split("-")
+            tem_story = any(palavra in partes_nome for palavra in palavras_story)
+            tem_feed = "feed" in partes_nome
+            tem_carrossel = "carrossel" in partes_nome or "carousel" in partes_nome
+
+            if tem_carrossel:
+                if is_story and tem_feed and not tem_story:
+                    continue
+                if is_feed and tem_story and not tem_feed:
+                    continue
+                prioridade = 0 if (is_story and tem_story) or (is_feed and tem_feed) else 1
+                pastas_carrossel.append((prioridade, nome))
+            elif (
+                normalizar_nome(nome) == nome_tarefa_normalizado
+                or (is_story and tem_story)
+                or (is_feed and tem_feed)
+            ):
+                pastas_compativeis.append(nome)
+
+        pastas_carrossel.sort(key=lambda item: (item[0], chave_ordenacao_natural(item[1])))
+        for _, nome in pastas_carrossel:
+            imagens = listar_imagens(os.path.join(pasta_imagens, nome))
+            if len(imagens) >= CAROUSEL_MIN_IMAGES:
+                return imagens
+
+        for nome in sorted(pastas_compativeis, key=chave_ordenacao_natural):
+            imagens = listar_imagens(os.path.join(pasta_imagens, nome))
+            if len(imagens) >= CAROUSEL_MIN_IMAGES:
+                return imagens
+        return []
+
+    candidatos = [nome for nome in todos_arquivos if nome_tarefa.casefold() in nome.casefold()]
+    arquivos_imagem = [
+        nome for nome in candidatos
+        if os.path.isfile(os.path.join(pasta_imagens, nome))
+        and nome.casefold().endswith(IMAGE_EXTENSIONS)
+    ]
+
+    for nome in arquivos_imagem:
+        nome_sem_extensao = os.path.splitext(nome)[0].casefold()
+        if is_story and any(palavra in nome_sem_extensao for palavra in ("story", "stories", "storie")):
+            return [os.path.join(pasta_imagens, nome)]
+        if is_feed and "feed" in nome_sem_extensao:
+            return [os.path.join(pasta_imagens, nome)]
+
+    for nome in arquivos_imagem:
+        if os.path.splitext(nome)[0].casefold() == nome_tarefa.casefold():
+            return [os.path.join(pasta_imagens, nome)]
+
+    for nome in pastas:
+        if not contem_tarefa(nome):
+            continue
+        partes_nome = normalizar_nome(nome).split("-")
+        tem_story = any(palavra in partes_nome for palavra in ("story", "stories", "storie"))
+        if (
+            (is_story and tem_story)
+            or (is_feed and "feed" in partes_nome)
+            or normalizar_nome(nome) == nome_tarefa_normalizado
+        ):
+            imagens = listar_imagens(os.path.join(pasta_imagens, nome))
+            if imagens:
+                return imagens
+
     return []
 
 # ==========================================
@@ -329,6 +482,9 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
     try:
         tarefas = extrair_dados_do_texto(conteudo_texto)
         total_tarefas = len(tarefas)
+
+        log_to_ui("Inicializando o motor de automação...")
+        instalar_chromium_se_necessario(log_to_ui)
 
         with sync_playwright() as p:
             log_to_ui("🌐 Abrindo Navegador...")
@@ -432,7 +588,7 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                     verificar_parada()
                     log_to_ui(f"   ↳ {tipo_form}")
                     
-                    if "Carrossel" in tipo_form: tarefa_tem_carrossel = True
+                    if "carrossel" in tipo_form.lower(): tarefa_tem_carrossel = True
                     
                     page.locator("div.tab span:has-text('Formulários')").click()
                     page.wait_for_timeout(2000) 
@@ -442,28 +598,32 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                     page.wait_for_timeout(1000)
                     page.locator("span.span-tab", has_text="CRIAÇÃO").click()
 
-                    if "Carrossel" not in tipo_form:
-                        imagens = buscar_imagens(task['nome'], tipo_form, pasta_imagens)
-                        if imagens:
-                            page.locator("div.attachment-task").click()
-                            with page.expect_file_chooser() as fc_info:
-                                page.locator("button.upload-button").click(force=True)
-                            fc_info.value.set_files(imagens)
-                            qtd_imagens = str(len(imagens))
-                            log_to_ui(f"   ⏳ Aguardando upload ({qtd_imagens} arquivo(s))...")
-                            verificar_parada()
-                            page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                    is_carrossel = "carrossel" in tipo_form.lower()
+                    imagens = buscar_imagens(task['nome'], tipo_form, pasta_imagens)
+
+                    if is_carrossel and len(imagens) < CAROUSEL_MIN_IMAGES:
+                        log_to_ui(
+                            f"Carrossel de {task['nome']} sem upload: são necessárias pelo menos "
+                            f"{CAROUSEL_MIN_IMAGES} imagens."
+                        )
+                    elif imagens:
+                        page.locator("div.attachment-task").click()
+                        with page.expect_file_chooser() as fc_info:
+                            page.locator("button.upload-button").click(force=True)
+                        fc_info.value.set_files(imagens)
+                        qtd_imagens = str(len(imagens))
+                        log_to_ui(f"   ⏳ Aguardando upload ({qtd_imagens} arquivo(s))...")
+                        verificar_parada()
+                        page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                        verificar_parada()
+
+                        if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
+                            log_to_ui("   ⏳ Aguardando processamento das imagens do Story...")
+                            page.wait_for_timeout(2500)
                             verificar_parada()
 
-                            if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
-                                log_to_ui("   ⏳ Aguardando processamento da imagem do Story...")
-                                page.wait_for_timeout(2500)
-                                verificar_parada()
-
-                            page.locator("button.btn-primary:has-text('Adicionar')").click()
-                            page.wait_for_timeout(1000)
-                    else:
-                        log_to_ui("   ↳ (Manual) Upload de Carrossel.")
+                        page.locator("button.btn-primary:has-text('Adicionar')").click()
+                        page.wait_for_timeout(1000)
                     
                     verificar_parada()
                     page.locator("div.button-save button:has-text('Salvar')").click()
@@ -479,7 +639,7 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                     page.locator("button:has-text('Continuar sem apontar')").click()
                     log_to_ui(f"✅ {task['nome']} Avançada!")
                 else:
-                    log_to_ui(f"⚠️ {task['nome']} Retida.")
+                    log_to_ui(f"Tarefa {task['nome']} retida para revisão do carrossel.")
                 
                 pct = int(((index + 1) / total_tarefas) * 100)
                 eel.atualizarProgresso(pct, f"{pct}% ({index + 1}/{total_tarefas})")
@@ -502,5 +662,8 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
         stop_requested = False
         eel.restaurarBotoes()
 
-if __name__ == '__main__':
-    eel.start('index.html', size=(900, 750), port=0)
+if __name__ == "__main__":
+    if "--preview" in sys.argv:
+        eel.start("index.html", mode=False, host="0.0.0.0", port=8765, all_interfaces=True)
+    else:
+        eel.start("index.html", size=(900, 750), port=0)

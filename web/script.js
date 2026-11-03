@@ -23,6 +23,11 @@ async function escolherPasta() {
         let elemCaminho = document.getElementById("caminho-pasta");
         elemCaminho.innerText = caminho.length > 30 ? ".../" + caminho.split(/[\\/]/).pop() : caminho;
         elemCaminho.title = caminho;
+        await eel.salvar_config_py(
+            document.getElementById("email").value,
+            document.getElementById("senha").value,
+            pastaSelecionada
+        )();
     }
 }
 
