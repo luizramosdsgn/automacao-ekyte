@@ -16,6 +16,39 @@ if getattr(sys, 'frozen', False):
 else:
     _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(_BASE_DIR, "config.json")
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
+CAROUSEL_MIN_IMAGES = 2
+
+
+def chave_ordenacao_natural(valor):
+    return tuple(
+        (1, int(parte)) if parte.isdigit() else (0, parte.casefold())
+        for parte in re.split(r"(\d+)", valor)
+    )
+
+
+def instalar_chromium_se_necessario(avisar):
+    with sync_playwright() as playwright:
+        executavel = playwright.chromium.executable_path
+
+    if os.path.isfile(executavel):
+        return
+
+    avisar("Chromium não encontrado. Instalando automaticamente...")
+    from playwright._impl.__main__ import main as playwright_main
+
+    argumentos_originais = sys.argv
+    sys.argv = ["playwright", "install", "chromium"]
+    try:
+        try:
+            playwright_main()
+        except SystemExit as erro:
+            if erro.code not in (None, 0):
+                raise RuntimeError("Não foi possível instalar o Chromium.") from erro
+    finally:
+        sys.argv = argumentos_originais
+
+    avisar("Instalação do Chromium concluída.")
 
 ctk.set_appearance_mode("dark")  
 ctk.set_default_color_theme("blue")
@@ -28,8 +61,9 @@ class AppAutomaEkyte(ctk.CTk):
         super().__init__()
 
         self.title("Robô eKyte - Automação de Tarefas")
-        self.geometry("850x720")
-        self.resizable(False, False)
+        self.geometry("980x760")
+        self.minsize(900, 680)
+        self.resizable(True, True)
 
         self.pasta_imagens = ""
         self.is_running = False      
@@ -39,89 +73,245 @@ class AppAutomaEkyte(ctk.CTk):
         self.carregar_config()
 
     def criar_interface(self):
-        # COLUNA ESQUERDA: CONFIGURAÇÕES
-        frame_config = ctk.CTkFrame(self, width=350, corner_radius=10)
-        frame_config.pack(side="left", fill="y", padx=20, pady=20)
+        self.configure(fg_color="#16162a")
 
-        ctk.CTkLabel(frame_config, text="Configurações", font=("Segoe UI", 18, "bold")).pack(pady=(20, 15))
+        # COLUNA ESQUERDA: CONFIGURAÇÕES
+        frame_config = ctk.CTkFrame(self, width=260, corner_radius=24, fg_color="#3179FF")
+        frame_config.pack(side="left", fill="y", padx=18, pady=18)
+        frame_config.pack_propagate(False)
+
+        ctk.CTkLabel(
+            frame_config,
+            text="Configurações",
+            font=("Segoe UI", 18, "bold"),
+            text_color="#ffffff",
+        ).pack(anchor="w", padx=18, pady=(22, 24))
 
         # E-mail
-        ctk.CTkLabel(frame_config, text="E-mail do eKyte:", font=("Segoe UI", 12)).pack(anchor="w", padx=20)
-        self.entry_email = ctk.CTkEntry(frame_config, width=300, placeholder_text="seu@email.com")
-        self.entry_email.pack(padx=20, pady=(0, 15))
+        ctk.CTkLabel(
+            frame_config,
+            text="E-MAIL DO EKYTE",
+            font=("Segoe UI", 11, "bold"),
+            text_color="#e8efff",
+        ).pack(anchor="w", padx=18, pady=(0, 5))
+        self.entry_email = ctk.CTkEntry(
+            frame_config,
+            height=40,
+            placeholder_text="seu@email.com",
+            fg_color="#3d77df",
+            border_color="#77a1f1",
+            text_color="#ffffff",
+            placeholder_text_color="#c7d8ff",
+            corner_radius=8,
+        )
+        self.entry_email.pack(padx=18, pady=(0, 16), fill="x")
 
         # Senha
-        ctk.CTkLabel(frame_config, text="Senha do eKyte:", font=("Segoe UI", 12)).pack(anchor="w", padx=20)
+        ctk.CTkLabel(
+            frame_config,
+            text="SENHA DO EKYTE",
+            font=("Segoe UI", 11, "bold"),
+            text_color="#e8efff",
+        ).pack(anchor="w", padx=18, pady=(0, 5))
         frame_senha = ctk.CTkFrame(frame_config, fg_color="transparent")
-        frame_senha.pack(padx=20, pady=(0, 15), fill="x")
-        
-        self.entry_senha = ctk.CTkEntry(frame_senha, width=255, show="*", placeholder_text="Sua senha")
-        self.entry_senha.pack(side="left")
-        
-        self.btn_eye = ctk.CTkButton(frame_senha, text="👁", width=40, fg_color="#444444", hover_color="#333333", command=self.toggle_senha)
-        self.btn_eye.pack(side="right")
+        frame_senha.pack(padx=18, pady=(0, 16), fill="x")
+
+        self.entry_senha = ctk.CTkEntry(
+            frame_senha,
+            height=40,
+            show="*",
+            placeholder_text="Sua senha",
+            fg_color="#3d77df",
+            border_color="#77a1f1",
+            text_color="#ffffff",
+            placeholder_text_color="#c7d8ff",
+            corner_radius=8,
+        )
+        self.entry_senha.pack(side="left", fill="x", expand=True)
+
+        self.btn_eye = ctk.CTkButton(
+            frame_senha,
+            text="👁",
+            width=38,
+            height=38,
+            fg_color="#477edf",
+            hover_color="#5c8fe6",
+            corner_radius=8,
+            command=self.toggle_senha,
+        )
+        self.btn_eye.pack(side="right", padx=(6, 0))
 
         # Pasta
-        ctk.CTkLabel(frame_config, text="Pasta das Imagens:", font=("Segoe UI", 12)).pack(anchor="w", padx=20)
-        self.btn_pasta = ctk.CTkButton(frame_config, text="Escolher Diretório", fg_color="#10b981", hover_color="#059669", command=self.selecionar_pasta)
-        self.btn_pasta.pack(padx=20, pady=(0, 5), fill="x")
-        self.lbl_pasta = ctk.CTkLabel(frame_config, text="Nenhuma pasta selecionada", text_color="gray", font=("Segoe UI", 11))
-        self.lbl_pasta.pack(padx=20, pady=(0, 15))
+        ctk.CTkLabel(
+            frame_config,
+            text="PASTA DAS IMAGENS",
+            font=("Segoe UI", 11, "bold"),
+            text_color="#e8efff",
+        ).pack(anchor="w", padx=18, pady=(0, 5))
+        self.btn_pasta = ctk.CTkButton(
+            frame_config,
+            text="Escolher Diretório",
+            height=38,
+            fg_color="#477edf",
+            hover_color="#5c8fe6",
+            corner_radius=8,
+            command=self.selecionar_pasta,
+        )
+        self.btn_pasta.pack(padx=18, pady=(0, 6), fill="x")
+        self.lbl_pasta = ctk.CTkLabel(
+            frame_config,
+            text="Nenhuma pasta selecionada",
+            text_color="#d8e4ff",
+            font=("Segoe UI", 10),
+            wraplength=215,
+            justify="left",
+        )
+        self.lbl_pasta.pack(padx=18, pady=(0, 8), anchor="w")
+        ctk.CTkLabel(
+            frame_config,
+            text="Carrossel: use uma subpasta DD-MM-carrossel com imagens nomeadas 01, 02, 03.",
+            text_color="#d8e4ff",
+            font=("Segoe UI", 10),
+            wraplength=215,
+            justify="left",
+        ).pack(padx=18, pady=(0, 10), anchor="w")
 
         # ==========================================
-        # SWITCHES (Lado a Lado)
+        # SWITCHES
         # ==========================================
         frame_switches = ctk.CTkFrame(frame_config, fg_color="transparent")
-        frame_switches.pack(padx=20, pady=10, fill="x")
+        frame_switches.pack(padx=18, pady=(4, 0), fill="x")
 
         # Modo Headless
-        self.switch_headless = ctk.CTkSwitch(frame_switches, text="Ocultar Chrome", progress_color="#3179FF")
-        self.switch_headless.pack(side="left", expand=True, anchor="w")
+        self.switch_headless = ctk.CTkSwitch(
+            frame_switches,
+            text="Ocultar Chrome",
+            progress_color="#ffffff",
+            button_color="#ffffff",
+            button_hover_color="#e8efff",
+            text_color="#ffffff",
+            font=("Segoe UI", 11),
+        )
+        self.switch_headless.pack(anchor="w", pady=(0, 12))
 
         # Modo de Teste
-        self.switch_teste = ctk.CTkSwitch(frame_switches, text="Vídeo (dev)", progress_color="#3179FF")
-        self.switch_teste.pack(side="right", expand=True, anchor="e")
+        self.switch_teste = ctk.CTkSwitch(
+            frame_switches,
+            text="Vídeo (dev)",
+            progress_color="#ffffff",
+            button_color="#ffffff",
+            button_hover_color="#e8efff",
+            text_color="#ffffff",
+            font=("Segoe UI", 11),
+        )
+        self.switch_teste.pack(anchor="w")
         # ==========================================
 
         # Botão Start/Stop
-        self.btn_iniciar = ctk.CTkButton(frame_config, text="INICIAR AUTOMAÇÃO", height=50, font=("Segoe UI", 14, "bold"), fg_color="#3179FF", hover_color="#2562d4", command=self.toggle_automacao)
-        self.btn_iniciar.pack(padx=20, pady=30, fill="x")
+        self.btn_iniciar = ctk.CTkButton(
+            frame_config,
+            text="INICIAR AUTOMAÇÃO",
+            height=48,
+            font=("Segoe UI", 14, "bold"),
+            fg_color="#ffffff",
+            text_color="#3179FF",
+            hover_color="#f0f0f8",
+            corner_radius=14,
+            command=self.toggle_automacao,
+        )
+        self.btn_iniciar.pack(side="bottom", padx=18, pady=18, fill="x")
 
         # COLUNA DIREITA: DADOS E LOGS
-        frame_dados = ctk.CTkFrame(self, corner_radius=10)
-        frame_dados.pack(side="right", fill="both", expand=True, padx=(0, 20), pady=20)
+        frame_dados = ctk.CTkFrame(
+            self,
+            corner_radius=24,
+            fg_color="#22223a",
+            border_width=1,
+            border_color="#3a3a5c",
+        )
+        frame_dados.pack(side="right", fill="both", expand=True, padx=(0, 18), pady=18)
 
         # ==========================================
         # HEADER DO DOCS COM BOTÃO DE PADRONIZAR
         # ==========================================
         frame_docs_header = ctk.CTkFrame(frame_dados, fg_color="transparent")
-        frame_docs_header.pack(fill="x", padx=20, pady=(20, 5))
-        
-        ctk.CTkLabel(frame_docs_header, text="Texto do Planejamento:", font=("Segoe UI", 14, "bold")).pack(side="left")
-        
-        self.btn_formatar = ctk.CTkButton(frame_docs_header, text="🧹 Padronizar Texto", width=140, height=28, font=("Segoe UI", 12, "bold"), fg_color="#10b981", hover_color="#059669", command=self.padronizar_texto)
+        frame_docs_header.pack(fill="x", padx=24, pady=(24, 8))
+
+        ctk.CTkLabel(
+            frame_docs_header,
+            text="Texto do Planejamento",
+            font=("Segoe UI", 14, "bold"),
+            text_color="#f0f0f8",
+        ).pack(side="left")
+
+        self.btn_formatar = ctk.CTkButton(
+            frame_docs_header,
+            text="🧹 Padronizar Texto",
+            width=140,
+            height=34,
+            font=("Segoe UI", 12, "bold"),
+            fg_color="#10b981",
+            hover_color="#059669",
+            corner_radius=8,
+            command=self.padronizar_texto,
+        )
         self.btn_formatar.pack(side="right")
         # ==========================================
 
-        self.textbox_docs = ctk.CTkTextbox(frame_dados, height=200)
-        self.textbox_docs.pack(padx=20, pady=(0, 15), fill="x")
+        self.textbox_docs = ctk.CTkTextbox(
+            frame_dados,
+            height=180,
+            fg_color="#2e2e4a",
+            text_color="#f0f0f8",
+            border_width=1,
+            border_color="#444466",
+            corner_radius=14,
+            font=("Segoe UI", 13),
+            wrap="word",
+        )
+        self.textbox_docs.pack(padx=24, pady=(0, 18), fill="x")
 
-        ctk.CTkLabel(frame_dados, text="Terminal de Execução:", font=("Segoe UI", 14, "bold")).pack(anchor="w", padx=20, pady=(0, 5))
-        self.textbox_log = ctk.CTkTextbox(frame_dados, fg_color="#1e1e1e", text_color="#3179FF", font=("Consolas", 12))
-        self.textbox_log.pack(padx=20, pady=(0, 15), fill="both", expand=True)
-        self.textbox_log.configure(state="disabled") 
+        ctk.CTkLabel(
+            frame_dados,
+            text="Terminal de Execução",
+            font=("Segoe UI", 14, "bold"),
+            text_color="#f0f0f8",
+        ).pack(anchor="w", padx=24, pady=(0, 8))
+        self.textbox_log = ctk.CTkTextbox(
+            frame_dados,
+            fg_color="#16162a",
+            text_color="#7eb0ff",
+            border_width=1,
+            border_color="#3a3a5c",
+            corner_radius=14,
+            font=("Consolas", 12),
+            wrap="word",
+        )
+        self.textbox_log.pack(padx=24, pady=(0, 12), fill="both", expand=True)
+        self.textbox_log.configure(state="disabled")
 
         # ==========================================
         # BARRA DE PROGRESSO COM TEXTO
         # ==========================================
         frame_progresso = ctk.CTkFrame(frame_dados, fg_color="transparent")
-        frame_progresso.pack(padx=20, pady=(0, 20), fill="x")
-        
-        self.progressbar = ctk.CTkProgressBar(frame_progresso, height=12, progress_color="#3179FF")
-        self.progressbar.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        self.progressbar.set(0) # Inicia vazia
+        frame_progresso.pack(padx=24, pady=(4, 22), fill="x")
 
-        self.lbl_progresso = ctk.CTkLabel(frame_progresso, text="0%", font=("Segoe UI", 12, "bold"), text_color="#3179FF")
+        self.progressbar = ctk.CTkProgressBar(
+            frame_progresso,
+            height=10,
+            fg_color="#3a3a5c",
+            progress_color="#3179FF",
+            corner_radius=20,
+        )
+        self.progressbar.pack(side="left", fill="x", expand=True, padx=(0, 12))
+        self.progressbar.set(0)
+
+        self.lbl_progresso = ctk.CTkLabel(
+            frame_progresso,
+            text="0%",
+            font=("Segoe UI", 12, "bold"),
+            text_color="#3179FF",
+        )
         self.lbl_progresso.pack(side="right")
         # ==========================================
 
@@ -145,9 +335,15 @@ class AppAutomaEkyte(ctk.CTk):
             self.salvar_config()
 
     def log(self, mensagem):
+        if threading.current_thread() is threading.main_thread():
+            self._append_log(mensagem)
+        else:
+            self.after(0, self._append_log, mensagem)
+
+    def _append_log(self, mensagem):
         self.textbox_log.configure(state="normal")
         self.textbox_log.insert("end", mensagem + "\n")
-        self.textbox_log.see("end") 
+        self.textbox_log.see("end")
         self.textbox_log.configure(state="disabled")
         
     def atualizar_progresso_ui(self, valor, texto):
@@ -380,10 +576,13 @@ class AppAutomaEkyte(ctk.CTk):
         faltando = []
         for task in tarefas:
             for tipo_form in task["tipos_formulario"]:
-                if "Carrossel" in tipo_form:
-                    continue
                 imagens = self.buscar_imagens(task["nome"], tipo_form)
-                if not imagens:
+                is_carrossel = "carrossel" in tipo_form.lower()
+                if is_carrossel and len(imagens) < CAROUSEL_MIN_IMAGES:
+                    faltando.append(
+                        f"  • Tarefa {task['nome']} (Carrossel: {len(imagens)}/{CAROUSEL_MIN_IMAGES} imagens)"
+                    )
+                elif not is_carrossel and not imagens:
                     tipo_curto = "Story" if "Story" in tipo_form else "Feed"
                     faltando.append(f"  • Tarefa {task['nome']} ({tipo_curto})")
 
@@ -425,7 +624,7 @@ class AppAutomaEkyte(ctk.CTk):
             texto_completo = "DATA DA PUBLICAÇÃO:" + bloco.strip()
             texto_min = texto_completo.lower()
             if "vídeo" in texto_min or "video" in texto_min:
-                self.log("⚠️ Tarefa ignorada (Conteúdo em vídeo detectado).")
+                self.log("Tarefa ignorada (conteúdo em vídeo detectado).")
                 continue 
             data_match = re.search(r'(\d{2}/\d{2})', bloco)
             if data_match:
@@ -440,40 +639,122 @@ class AppAutomaEkyte(ctk.CTk):
         return tarefas
 
     def buscar_imagens(self, nome_tarefa, tipo_form):
-        tipo_form_lower = tipo_form.lower()
-        is_story = "story" in tipo_form_lower
+        tipo_form_lower = tipo_form.casefold()
+        is_carrossel = "carrossel" in tipo_form_lower or "carousel" in tipo_form_lower
+        is_story = any(palavra in tipo_form_lower for palavra in ("story", "stories", "storie"))
         is_feed = "feed" in tipo_form_lower
 
-        if not os.path.exists(self.pasta_imagens):
+        if not os.path.isdir(self.pasta_imagens):
             return []
-            
-        todos_arquivos = os.listdir(self.pasta_imagens)
-        candidatos = [f for f in todos_arquivos if nome_tarefa in f]
-        
-        for candidato in candidatos:
-            caminho_completo = os.path.join(self.pasta_imagens, candidato)
-            nome_sem_ext = os.path.splitext(candidato)[0].lower()
-            if os.path.isfile(caminho_completo) and candidato.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-                if is_story and any(k in nome_sem_ext for k in ["story", "stories", "storie"]):
-                    return [caminho_completo]
-                if is_feed and "feed" in nome_sem_ext:
-                    return [caminho_completo]
 
-        for candidato in candidatos:
-            caminho_completo = os.path.join(self.pasta_imagens, candidato)
-            nome_sem_ext = os.path.splitext(candidato)[0].lower()
-            if os.path.isfile(caminho_completo) and candidato.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-                if nome_sem_ext == nome_tarefa: 
-                    return [caminho_completo]
+        try:
+            todos_arquivos = sorted(os.listdir(self.pasta_imagens), key=chave_ordenacao_natural)
+        except OSError:
+            return []
 
-        for candidato in candidatos:
-            caminho_completo = os.path.join(self.pasta_imagens, candidato)
-            nome_sem_ext = candidato.lower()
-            if os.path.isdir(caminho_completo):
-                if (is_story and any(k in nome_sem_ext for k in ["story", "stories", "storie"])) or \
-                   (is_feed and "feed" in nome_sem_ext) or \
-                   (nome_sem_ext == nome_tarefa):
-                    return [os.path.join(caminho_completo, f) for f in os.listdir(caminho_completo) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+        def normalizar_nome(valor):
+            return re.sub(r"[^a-z0-9]+", "-", valor.casefold()).strip("-")
+
+        nome_tarefa_normalizado = normalizar_nome(nome_tarefa)
+        partes_tarefa = nome_tarefa_normalizado.split("-")
+
+        def contem_tarefa(nome):
+            partes_nome = normalizar_nome(nome).split("-")
+            return any(
+                partes_nome[indice:indice + len(partes_tarefa)] == partes_tarefa
+                for indice in range(max(0, len(partes_nome) - len(partes_tarefa) + 1))
+            )
+
+        def listar_imagens(pasta):
+            try:
+                nomes_imagem = [
+                    nome for nome in os.listdir(pasta)
+                    if os.path.isfile(os.path.join(pasta, nome))
+                    and nome.casefold().endswith(IMAGE_EXTENSIONS)
+                ]
+            except OSError:
+                return []
+            return [
+                os.path.join(pasta, nome)
+                for nome in sorted(nomes_imagem, key=chave_ordenacao_natural)
+            ]
+
+        pastas = [
+            nome for nome in todos_arquivos
+            if os.path.isdir(os.path.join(self.pasta_imagens, nome))
+        ]
+
+        if is_carrossel:
+            pastas_carrossel = []
+            pastas_compativeis = []
+            palavras_story = ("story", "stories", "storie")
+
+            for nome in pastas:
+                if not contem_tarefa(nome):
+                    continue
+
+                partes_nome = normalizar_nome(nome).split("-")
+                tem_story = any(palavra in partes_nome for palavra in palavras_story)
+                tem_feed = "feed" in partes_nome
+                tem_carrossel = "carrossel" in partes_nome or "carousel" in partes_nome
+
+                if tem_carrossel:
+                    if is_story and tem_feed and not tem_story:
+                        continue
+                    if is_feed and tem_story and not tem_feed:
+                        continue
+                    prioridade = 0 if (is_story and tem_story) or (is_feed and tem_feed) else 1
+                    pastas_carrossel.append((prioridade, nome))
+                elif (
+                    normalizar_nome(nome) == nome_tarefa_normalizado
+                    or (is_story and tem_story)
+                    or (is_feed and tem_feed)
+                ):
+                    pastas_compativeis.append(nome)
+
+            pastas_carrossel.sort(key=lambda item: (item[0], chave_ordenacao_natural(item[1])))
+            for _, nome in pastas_carrossel:
+                imagens = listar_imagens(os.path.join(self.pasta_imagens, nome))
+                if len(imagens) >= CAROUSEL_MIN_IMAGES:
+                    return imagens
+
+            for nome in sorted(pastas_compativeis, key=chave_ordenacao_natural):
+                imagens = listar_imagens(os.path.join(self.pasta_imagens, nome))
+                if len(imagens) >= CAROUSEL_MIN_IMAGES:
+                    return imagens
+            return []
+
+        candidatos = [nome for nome in todos_arquivos if nome_tarefa.casefold() in nome.casefold()]
+        arquivos_imagem = [
+            nome for nome in candidatos
+            if os.path.isfile(os.path.join(self.pasta_imagens, nome))
+            and nome.casefold().endswith(IMAGE_EXTENSIONS)
+        ]
+
+        for nome in arquivos_imagem:
+            nome_sem_extensao = os.path.splitext(nome)[0].casefold()
+            if is_story and any(palavra in nome_sem_extensao for palavra in ("story", "stories", "storie")):
+                return [os.path.join(self.pasta_imagens, nome)]
+            if is_feed and "feed" in nome_sem_extensao:
+                return [os.path.join(self.pasta_imagens, nome)]
+
+        for nome in arquivos_imagem:
+            if os.path.splitext(nome)[0].casefold() == nome_tarefa.casefold():
+                return [os.path.join(self.pasta_imagens, nome)]
+
+        for nome in pastas:
+            if not contem_tarefa(nome):
+                continue
+            partes_nome = normalizar_nome(nome).split("-")
+            tem_story = any(palavra in partes_nome for palavra in ("story", "stories", "storie"))
+            if (
+                (is_story and tem_story)
+                or (is_feed and "feed" in partes_nome)
+                or normalizar_nome(nome) == nome_tarefa_normalizado
+            ):
+                imagens = listar_imagens(os.path.join(self.pasta_imagens, nome))
+                if imagens:
+                    return imagens
 
         return []
 
@@ -489,18 +770,7 @@ class AppAutomaEkyte(ctk.CTk):
             total_tarefas = len(tarefas)
 
             self.log("📦 Inicializando o motor de automação...")
-            try:
-                from playwright._impl.__main__ import main as playwright_main
-                original_argv = sys.argv
-                sys.argv = ["playwright", "install", "chromium"]
-                try:
-                    playwright_main()
-                except SystemExit:
-                    pass 
-                finally:
-                    sys.argv = original_argv
-            except Exception as e:
-                pass 
+            instalar_chromium_se_necessario(self.log)
 
             with sync_playwright() as p:
                 self.log("🌐 Abrindo Navegador...")
@@ -625,7 +895,7 @@ class AppAutomaEkyte(ctk.CTk):
 
                         self.log(f"   ↳ {tipo_form}")
                         
-                        if "Carrossel" in tipo_form:
+                        if "carrossel" in tipo_form.lower():
                             tarefa_tem_carrossel = True
                         
                         page.locator("div.tab span:has-text('Formulários')").click()
@@ -638,32 +908,35 @@ class AppAutomaEkyte(ctk.CTk):
                         page.wait_for_timeout(1000)
                         page.locator("span.span-tab", has_text="CRIAÇÃO").click()
 
-                        if "Carrossel" not in tipo_form:
-                            imagens = self.buscar_imagens(task['nome'], tipo_form)
-                            
-                            if imagens:
-                                page.locator("div.attachment-task").click()
-                                
-                                with page.expect_file_chooser() as fc_info:
-                                    page.locator("button.upload-button").click(force=True)
-                                fc_info.value.set_files(imagens)
-                                
-                                qtd_imagens = str(len(imagens))
-                                self.log(f"   ⏳ Aguardando eKyte validar ({qtd_imagens} arquivo(s))...")
-                                
-                                self.verificar_parada()
-                                page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                        is_carrossel = "carrossel" in tipo_form.lower()
+                        imagens = self.buscar_imagens(task['nome'], tipo_form)
+
+                        if is_carrossel and len(imagens) < CAROUSEL_MIN_IMAGES:
+                            self.log(
+                                f"Carrossel da tarefa {task['nome']} sem envio: "
+                                f"selecione pelo menos {CAROUSEL_MIN_IMAGES} imagens."
+                            )
+                        elif imagens:
+                            page.locator("div.attachment-task").click()
+
+                            with page.expect_file_chooser() as fc_info:
+                                page.locator("button.upload-button").click(force=True)
+                            fc_info.value.set_files(imagens)
+
+                            qtd_imagens = str(len(imagens))
+                            self.log(f"Aguardando o eKyte validar {qtd_imagens} arquivo(s)...")
+
+                            self.verificar_parada()
+                            page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                            self.verificar_parada()
+
+                            if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
+                                self.log("Aguardando o processamento das imagens do Story...")
+                                page.wait_for_timeout(2500)
                                 self.verificar_parada()
 
-                                if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
-                                    self.log("   ⏳ Aguardando processamento da imagem do Story...")
-                                    page.wait_for_timeout(2500)
-                                    self.verificar_parada()
-
-                                page.locator("button.btn-primary:has-text('Adicionar')").click()
-                                page.wait_for_timeout(1000)
-                        else:
-                            self.log("   ↳ (Manual) Upload de Carrossel.")
+                            page.locator("button.btn-primary:has-text('Adicionar')").click()
+                            page.wait_for_timeout(1000)
                         
                         self.verificar_parada()
 
@@ -681,7 +954,7 @@ class AppAutomaEkyte(ctk.CTk):
                         page.locator("button:has-text('Continuar sem apontar')").click()
                         self.log(f"✅ {task['nome']} Avançada!")
                     else:
-                        self.log(f"⚠️ {task['nome']} Retida (Aguardando Imagens do Carrossel).")
+                        self.log(f"Tarefa {task['nome']} retida para revisão do carrossel.")
                     
                     progresso_atual = (index + 1) / total_tarefas
                     pct = int(progresso_atual * 100)
