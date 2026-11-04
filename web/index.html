@@ -73,22 +73,7 @@
 	c-9.165-0.089-18.184,2.291-26.112,6.891C10.408,112.301-0.005,130.066,0,149.334v256c0,29.455,23.878,53.333,53.333,53.333h405.333
 	c29.455,0,53.333-23.878,53.333-53.333v-192C512.065,194.296,501.909,176.688,485.397,167.211z"
               ></path>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g>
-              <g></g></svg
-            >Escolher Diretório
+            </svg>Escolher Diretório
           </button>
           <span
             id="caminho-pasta"
@@ -96,16 +81,19 @@
             title="Nenhuma pasta selecionada"
             >Nenhuma pasta selecionada</span
           >
-          <small class="field-hint">
-            Carrossel: pasta DD-MM-carrossel com imagens nomeadas 01, 02, 03.
-          </small>
         </div>
 
         <div class="switches-group">
-          <label>
-            <input type="checkbox" id="modo-invisivel" /> Ocultar Chrome
+          <label class="toggle-switch">
+            <input type="checkbox" id="modo-invisivel" />
+            <span class="slider"></span>
+            Ocultar Chrome
           </label>
-          <label> <input type="checkbox" id="modo-teste" /> Vídeo (dev) </label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="criar-tarefas" />
+            <span class="slider"></span>
+            Criar tarefas
+          </label>
         </div>
 
         <button

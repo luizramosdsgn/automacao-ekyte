@@ -1,5 +1,5 @@
 /* ============================================
-   ROBÔ eKYTE WEB — Dashboard Style
+   ROBÔ EKYTE WEB — Dashboard Style
    Palette: #242424 / #2b2b2b / #3179FF / #10b981 / #ef4444
    ============================================ */
 
@@ -13,7 +13,6 @@
 }
 
 :root {
-    /* Core palette (projeto atual) */
     --bg-body:        #1a1a2e;
     --bg-shell:       #16162a;
     --bg-card:        #22223a;
@@ -50,35 +49,35 @@
     --transition:  .25s cubic-bezier(.4,0,.2,1);
 }
 
+/* O body agora não tem margens ou paddings para o app ocupar tudo nativamente */
 body {
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     background: var(--bg-body);
     color: var(--text-primary);
     min-height: 100vh;
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 20px;
+    margin: 0;
+    padding: 0;
     -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- OUTER SHELL (glassmorphism container) ---------- */
+/* Container expandido para cobrir 100% da largura e altura */
 .container {
     display: flex;
     gap: 0;
-    width: 100%;
-    max-width: 920px;
+    width: 100vw;
+    height: 100vh;
     background: var(--bg-shell);
-    border-radius: var(--radius-xl);
-    border: 1px solid var(--border-subtle);
-    box-shadow: var(--shadow-card), 0 0 80px rgba(49,121,255,.06);
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
     overflow: hidden;
 }
 
 /* ---------- SIDEBAR (config-card) ---------- */
 .config-card {
-    width: 260px;
-    min-width: 260px;
+    width: 340px;
+    min-width: 340px;
     background: linear-gradient(180deg, var(--accent) 0%, #254ebd 100%);
     padding: 28px 22px;
     display: flex;
@@ -221,49 +220,13 @@ body {
 
 /* Caminho da pasta */
 .text-muted {
-    font-size: 10px;
-    color: rgba(255,255,255,.5);
-    margin-top: 2px;
+    font-size: 11px;
+    color: rgba(255,255,255,.7);
+    margin-top: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     display: block;
-}
-
-.field-hint {
-    display: block;
-    max-width: 100%;
-    margin-top: 8px;
-    color: rgba(255,255,255,.78);
-    font-size: 10px;
-    line-height: 1.45;
-}
-
-/* Switches */
-.switches-group {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.switches-group label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    user-select: none;
-    color: rgba(255,255,255,.8);
-    font-weight: 500;
-}
-
-.switches-group input[type="checkbox"] {
-    cursor: pointer;
-    accent-color: #fff;
-    width: 15px;
-    height: 15px;
-    border-radius: 4px;
 }
 
 /* Primary action button (INICIAR) */
@@ -383,7 +346,7 @@ textarea {
     font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
     font-size: 12px;
     line-height: 1.7;
-    height: 170px;
+    flex: 1; /* Faz o log crescer dinamicamente para ocupar o restante da tela */
     border-radius: var(--radius-md);
     padding: 14px 16px;
 }
@@ -398,14 +361,14 @@ textarea {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-top: 4px;
+    margin-top: 10px;
 }
 
 .progress-bar-bg {
     flex: 1;
     background: var(--border-subtle);
     border-radius: 20px;
-    height: 10px;
+    height: 12px;
     overflow: hidden;
     position: relative;
 }
@@ -441,6 +404,62 @@ textarea {
     font-variant-numeric: tabular-nums;
 }
 
+/* ---------- TOGGLE SWITCHES ---------- */
+.switches-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.toggle-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: rgba(255,255,255,.8);
+    font-weight: 500;
+    user-select: none;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.toggle-switch .slider {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    background-color: rgba(255,255,255,0.15);
+    border-radius: 34px;
+    transition: 0.3s;
+}
+
+.toggle-switch .slider:before {
+    content: "";
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.toggle-switch input:checked + .slider {
+    background-color: var(--accent);
+}
+
+.toggle-switch input:checked + .slider:before {
+    transform: translateX(16px);
+}
+
 /* ---------- UTILITY ---------- */
 .hidden { display: none !important; }
 
@@ -462,11 +481,9 @@ button:focus-visible {
 @media (max-width: 700px) {
     .container {
         flex-direction: column;
-        border-radius: var(--radius-lg);
     }
     .config-card {
         width: 100%;
         min-width: unset;
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     }
 }

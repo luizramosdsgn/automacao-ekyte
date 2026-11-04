@@ -7,7 +7,7 @@ import json
 import base64
 import threading
 import customtkinter as ctk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog
 from playwright.sync_api import sync_playwright
 
 # Caminho do config.json
@@ -54,7 +54,7 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 # =============================================
-# ★ APLICAÇÃO PRINCIPAL
+# ★ APLICAÇÃO PRINCIPAL (CustomTkinter)
 # =============================================
 class AppAutomaEkyte(ctk.CTk):
     def __init__(self):
@@ -76,7 +76,8 @@ class AppAutomaEkyte(ctk.CTk):
         self.configure(fg_color="#16162a")
 
         # COLUNA ESQUERDA: CONFIGURAÇÕES
-        frame_config = ctk.CTkFrame(self, width=260, corner_radius=24, fg_color="#3179FF")
+        # Largura aumentada de 260px para 340px para acomodar melhor os botões
+        frame_config = ctk.CTkFrame(self, width=340, corner_radius=24, fg_color="#3179FF")
         frame_config.pack(side="left", fill="y", padx=18, pady=18)
         frame_config.pack_propagate(False)
 
@@ -163,21 +164,13 @@ class AppAutomaEkyte(ctk.CTk):
             text="Nenhuma pasta selecionada",
             text_color="#d8e4ff",
             font=("Segoe UI", 10),
-            wraplength=215,
+            wraplength=280,
             justify="left",
         )
-        self.lbl_pasta.pack(padx=18, pady=(0, 8), anchor="w")
-        ctk.CTkLabel(
-            frame_config,
-            text="Carrossel: use uma subpasta DD-MM-carrossel com imagens nomeadas 01, 02, 03.",
-            text_color="#d8e4ff",
-            font=("Segoe UI", 10),
-            wraplength=215,
-            justify="left",
-        ).pack(padx=18, pady=(0, 10), anchor="w")
+        self.lbl_pasta.pack(padx=18, pady=(0, 16), anchor="w")
 
         # ==========================================
-        # SWITCHES
+        # SWITCHES (Lado a Lado)
         # ==========================================
         frame_switches = ctk.CTkFrame(frame_config, fg_color="transparent")
         frame_switches.pack(padx=18, pady=(4, 0), fill="x")
@@ -192,19 +185,19 @@ class AppAutomaEkyte(ctk.CTk):
             text_color="#ffffff",
             font=("Segoe UI", 11),
         )
-        self.switch_headless.pack(anchor="w", pady=(0, 12))
+        self.switch_headless.pack(side="left", expand=True, anchor="w", pady=(0, 12))
 
         # Modo de Teste
-        self.switch_teste = ctk.CTkSwitch(
+        self.switch_criar = ctk.CTkSwitch(
             frame_switches,
-            text="Vídeo (dev)",
+            text="Criar tarefas",
             progress_color="#ffffff",
             button_color="#ffffff",
             button_hover_color="#e8efff",
             text_color="#ffffff",
             font=("Segoe UI", 11),
         )
-        self.switch_teste.pack(anchor="w")
+        self.switch_criar.pack(side="right", expand=True, anchor="e", pady=(0, 12))
         # ==========================================
 
         # Botão Start/Stop
@@ -363,13 +356,12 @@ class AppAutomaEkyte(ctk.CTk):
                 if email_salvo:
                     self.entry_email.insert(0, email_salvo)
                 
-                # Decodifica a senha base64 para texto legível na interface
                 if senha_salva:
                     try:
                         senha_limpa = base64.b64decode(senha_salva.encode('utf-8')).decode('utf-8')
                         self.entry_senha.insert(0, senha_limpa)
                     except Exception:
-                        pass # Ignora se a codificação estiver corrompida
+                        pass
 
                 if pasta_salva and os.path.isdir(pasta_salva):
                     self.pasta_imagens = pasta_salva
@@ -381,7 +373,6 @@ class AppAutomaEkyte(ctk.CTk):
     def salvar_config(self):
         try:
             senha_atual = self.entry_senha.get().strip()
-            # Codifica a senha em base64 (ofuscação) para não ficar legível no bloco de notas
             senha_b64 = base64.b64encode(senha_atual.encode('utf-8')).decode('utf-8') if senha_atual else ""
 
             cfg = {
@@ -512,7 +503,6 @@ class AppAutomaEkyte(ctk.CTk):
                 self.log("❌ ERRO: Cole o texto do Google Docs na caixa acima.")
                 return
 
-            # Ao clicar em iniciar, a senha também é salva no JSON
             self.salvar_config()
 
             self.log("🔍 Extraindo tarefas do texto...")
@@ -522,9 +512,6 @@ class AppAutomaEkyte(ctk.CTk):
                 self.log("❌ Nenhuma tarefa válida encontrada (ou todas eram vídeos).")
                 return
 
-            # ==========================================
-            # RESUMO DE TAREFAS (POP-UP)
-            # ==========================================
             qtd_feed = 0
             qtd_story = 0
             qtd_carrossel = 0
@@ -539,7 +526,10 @@ class AppAutomaEkyte(ctk.CTk):
                     elif 'feed' in tipo_min:
                         qtd_feed += 1
 
+            modo_texto = "CRIANDO NOVAS TAREFAS" if self.switch_criar.get() else "EDITANDO TEMPLATE [ROBO]"
+
             msg_resumo = (
+                f"Modo Atual: {modo_texto}\n\n"
                 f"O robô identificou {len(tarefas_preview)} postagem(ns) neste lote.\n\n"
                 f"Isso irá gerar os seguintes formulários:\n"
                 f"   • Feed: {qtd_feed}\n"
@@ -552,9 +542,7 @@ class AppAutomaEkyte(ctk.CTk):
             if not resposta_resumo:
                 self.log("🛑 Automação cancelada pelo usuário no resumo de tarefas.")
                 return
-            # ==========================================
 
-            # Faz a auditoria das imagens
             if not self.pre_check_imagens(tarefas_preview):
                 return
 
@@ -562,7 +550,7 @@ class AppAutomaEkyte(ctk.CTk):
             self.stop_requested = False
             self.progressbar.set(0)
             self.lbl_progresso.configure(text="0%")
-            self.btn_iniciar.configure(text="🛑 PARAR AUTOMAÇÃO", fg_color="#ef4444", hover_color="#b91c1c")
+            self.btn_iniciar.configure(text="🛑 PARAR AUTOMAÇÃO", fg_color="#ef4444", text_color="#ffffff", hover_color="#b91c1c")
             
             self.log("✅ Iniciando automação...")
             thread = threading.Thread(target=self.rodar_automacao_core, args=(conteudo_texto,))
@@ -580,7 +568,7 @@ class AppAutomaEkyte(ctk.CTk):
                 is_carrossel = "carrossel" in tipo_form.lower()
                 if is_carrossel and len(imagens) < CAROUSEL_MIN_IMAGES:
                     faltando.append(
-                        f"  • Tarefa {task['nome']} (Carrossel: {len(imagens)}/{CAROUSEL_MIN_IMAGES} imagens)"
+                        f"  • {task['nome']} (Carrossel: {len(imagens)}/{CAROUSEL_MIN_IMAGES} imagens)"
                     )
                 elif not is_carrossel and not imagens:
                     tipo_curto = "Story" if "Story" in tipo_form else "Feed"
@@ -600,6 +588,19 @@ class AppAutomaEkyte(ctk.CTk):
     # =============================================
     # ★ LÓGICA CORE (Mapeamento de texto e imagens)
     # =============================================
+    def extrair_workspace_da_pasta(self, caminho_pasta):
+        try:
+            caminho_limpo = caminho_pasta.replace("/", "\\")
+            partes = caminho_limpo.split("\\")
+            for i, parte in enumerate(partes):
+                if parte.lower() == "planejamentos clientes":
+                    if i + 1 < len(partes):
+                        return partes[i + 1]
+        except Exception as e:
+            self.log(f"⚠️ Erro ao extrair workspace da pasta: {e}")
+        return None
+
+
     def identificar_tipos_formulario(self, texto):
         texto_min = texto.lower()
         tipos = []
@@ -767,6 +768,7 @@ class AppAutomaEkyte(ctk.CTk):
             email = self.entry_email.get()
             senha = self.entry_senha.get()
             modo_invisivel = bool(self.switch_headless.get())
+            criar_tarefas = bool(self.switch_criar.get())
             total_tarefas = len(tarefas)
 
             self.log("📦 Inicializando o motor de automação...")
@@ -847,6 +849,60 @@ class AppAutomaEkyte(ctk.CTk):
                 
                 self.verificar_parada()
 
+                # ==========================================
+                # NOVO BLOCO: CRIAÇÃO E DUPLICAÇÃO
+                # ==========================================
+                if criar_tarefas:
+                    self.log("➕ Iniciando fluxo de Criação de Tarefas...")
+                    
+                    self.log("Criando tarefa base [ROBO]...")
+                    page.locator("a[title='Adicionar tarefa']").first.click()
+                    page.wait_for_timeout(2000)
+                    self.verificar_parada()
+
+                    self.log("Selecionando equipe base (Equipe 1)...")
+                    page.locator("input[placeholder='Pesquisar']").first.fill("Equipe 1")
+                    page.wait_for_timeout(1000)
+                    page.locator(".task-template-item").filter(has_text="Equipe 1").first.click()
+                    page.wait_for_timeout(2000)
+                    self.verificar_parada()
+
+                    page.locator("input[name='title']").fill("[ROBO]")
+                    
+                    workspace_name = self.extrair_workspace_da_pasta(self.pasta_imagens)
+                    if workspace_name:
+                        self.log(f"Definindo Workspace para: {workspace_name}")
+                        page.locator(".Select-multi-value-wrapper").click()
+                        page.wait_for_timeout(1000)
+                        page.keyboard.type(workspace_name)
+                        page.wait_for_timeout(1000)
+                        page.keyboard.press("Enter")
+                    else:
+                        self.log("⚠️ Não foi possível determinar o Workspace pela pasta. A tarefa será criada no Workspace atual.")
+                    
+                    self.verificar_parada()
+                    page.locator("button.btn-primary:has-text('Criar')").click()
+                    self.log("✅ Tarefa base [ROBO] criada.")
+                    page.wait_for_timeout(3000)
+                    
+                    duplications_needed = total_tarefas - 1
+                    if duplications_needed > 0:
+                        self.log(f"🔄 Duplicando tarefa base {duplications_needed} vezes...")
+                        for i in range(duplications_needed):
+                            self.verificar_parada()
+                            task_row = page.locator("text='[ROBO]'").first.locator("xpath=ancestor::tr")
+                            task_row.locator("i.material-icons[title='Duplicar']").click(force=True)
+                            page.wait_for_timeout(2000)
+                            
+                            page.locator("button.btn-primary:has-text('Avançar')").click()
+                            page.wait_for_timeout(1000)
+                            page.locator("button.btn-primary:has-text('Criar')").click()
+                            self.log(f"✅ Duplicata {i+1}/{duplications_needed} criada.")
+                            page.wait_for_timeout(3000)
+                    
+                    self.log("✅ Estrutura de tarefas pronta. Iniciando preenchimento...")
+                # ==========================================
+
                 page.locator("text='[ROBO]'").first.click()
                 page.wait_for_timeout(2000)
 
@@ -917,23 +973,40 @@ class AppAutomaEkyte(ctk.CTk):
                                 f"selecione pelo menos {CAROUSEL_MIN_IMAGES} imagens."
                             )
                         elif imagens:
-                            page.locator("div.attachment-task").click()
+                            # ==========================================
+                            # LOGICA DE UPLOAD (Simples x Sequencial)
+                            # ==========================================
+                            if is_carrossel:
+                                self.log(f"   Iniciando upload sequencial de {len(imagens)} imagens do Carrossel...")
+                                for i, imagem_path in enumerate(imagens):
+                                    self.verificar_parada()
+                                    page.locator("div.attachment-task").click()
+                                    with page.expect_file_chooser() as fc_info:
+                                        page.locator("button.upload-button").click(force=True)
+                                    fc_info.value.set_files([imagem_path])
+                                    
+                                    current_count = str(i + 1)
+                                    self.log(f"   ⏳ Enviando arquivo {current_count}/{len(imagens)}...")
+                                    page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']").wait_for(timeout=60000)
+                                
+                                self.log("   ✅ Upload do Carrossel concluído.")
+                            else:
+                                page.locator("div.attachment-task").click()
+                                with page.expect_file_chooser() as fc_info:
+                                    page.locator("button.upload-button").click(force=True)
+                                fc_info.value.set_files(imagens)
 
-                            with page.expect_file_chooser() as fc_info:
-                                page.locator("button.upload-button").click(force=True)
-                            fc_info.value.set_files(imagens)
+                                qtd_imagens = str(len(imagens))
+                                self.log(f"Aguardando o eKyte validar {qtd_imagens} arquivo(s)...")
 
-                            qtd_imagens = str(len(imagens))
-                            self.log(f"Aguardando o eKyte validar {qtd_imagens} arquivo(s)...")
-
-                            self.verificar_parada()
-                            page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
-                            self.verificar_parada()
-
-                            if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
-                                self.log("Aguardando o processamento das imagens do Story...")
-                                page.wait_for_timeout(2500)
                                 self.verificar_parada()
+                                page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                                self.verificar_parada()
+
+                                if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
+                                    self.log("Aguardando o processamento das imagens do Story...")
+                                    page.wait_for_timeout(2500)
+                                    self.verificar_parada()
 
                             page.locator("button.btn-primary:has-text('Adicionar')").click()
                             page.wait_for_timeout(1000)
@@ -982,7 +1055,7 @@ class AppAutomaEkyte(ctk.CTk):
     def restaurar_botao(self):
         self.is_running = False
         self.stop_requested = False
-        self.btn_iniciar.configure(state="normal", text="INICIAR AUTOMAÇÃO", fg_color="#3179FF", hover_color="#2562d4")
+        self.btn_iniciar.configure(state="normal", text="INICIAR AUTOMAÇÃO", fg_color="#ffffff", text_color="#3179FF", hover_color="#f0f0f8")
         if self.progressbar.get() < 1.0:
             self.progressbar.set(0)
             self.lbl_progresso.configure(text="0%")

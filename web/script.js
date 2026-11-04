@@ -36,6 +36,7 @@ async function iniciarRobo() {
     let senha = document.getElementById("senha").value;
     let texto = document.getElementById("texto-docs").value;
     let modoInvisivel = document.getElementById("modo-invisivel").checked;
+    let criarTarefas = document.getElementById("criar-tarefas").checked;
     
     document.getElementById("btn-iniciar").classList.add("hidden");
     document.getElementById("btn-parar").classList.remove("hidden");
@@ -44,7 +45,8 @@ async function iniciarRobo() {
     document.getElementById("btn-pasta").disabled = true;
     document.getElementById("btn-formatar").disabled = true;
 
-    await eel.iniciar_automacao_py(email, senha, pastaSelecionada, texto, modoInvisivel)();
+    // Passando o novo parâmetro para o Python
+    await eel.iniciar_automacao_py(email, senha, pastaSelecionada, texto, modoInvisivel, criarTarefas)();
 }
 
 async function pararRobo() {

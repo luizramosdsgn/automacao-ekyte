@@ -19,13 +19,11 @@ CONFIG_FILE = os.path.join(_BASE_DIR, "config.json")
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
 CAROUSEL_MIN_IMAGES = 2
 
-
 def chave_ordenacao_natural(valor):
     return tuple(
         (1, int(parte)) if parte.isdigit() else (0, parte.casefold())
         for parte in re.split(r"(\d+)", valor)
     )
-
 
 def instalar_chromium_se_necessario(avisar):
     with sync_playwright() as playwright:
@@ -93,7 +91,6 @@ def salvar_config(email, senha, pasta):
             json.dump(cfg, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
-
 
 @eel.expose
 def salvar_config_py(email, senha, pasta):
@@ -222,7 +219,7 @@ def padronizar_texto_py(conteudo, pasta_imagens):
         return conteudo
 
 @eel.expose
-def iniciar_automacao_py(email, senha, pasta, texto, modo_invisivel):
+def iniciar_automacao_py(email, senha, pasta, texto, modo_invisivel, criar_tarefas):
     global stop_requested, is_running
     
     if not email or not senha:
@@ -239,7 +236,6 @@ def iniciar_automacao_py(email, senha, pasta, texto, modo_invisivel):
         return
 
     salvar_config(email, senha, pasta)
-
     log_to_ui("🔍 Analisando texto...")
     tarefas_preview = extrair_dados_do_texto(texto)
 
@@ -255,7 +251,9 @@ def iniciar_automacao_py(email, senha, pasta, texto, modo_invisivel):
     root = tk.Tk()
     root.withdraw()
     root.attributes('-topmost', True)
+    modo_texto = "CRIANDO NOVAS TAREFAS" if criar_tarefas else "EDITANDO TEMPLATE [ROBO]"
     msg_resumo = (
+        f"Modo: {modo_texto}\n\n"
         f"Foram identificadas {len(tarefas_preview)} postagem(ns).\n\n"
         f"Formulários gerados:\n"
         f"   • Feed: {qtd_feed}\n"
@@ -275,13 +273,12 @@ def iniciar_automacao_py(email, senha, pasta, texto, modo_invisivel):
         return
         
     root.destroy()
-
     stop_requested = False
     is_running = True
     eel.atualizarProgresso(0, "0%")
     
     log_to_ui("✅ Iniciando automação...")
-    thread = threading.Thread(target=rodar_automacao_core, args=(email, senha, pasta, texto, modo_invisivel))
+    thread = threading.Thread(target=rodar_automacao_core, args=(email, senha, pasta, texto, modo_invisivel, criar_tarefas))
     thread.start()
 
 # ==========================================
@@ -291,6 +288,18 @@ def verificar_parada():
     global stop_requested
     if stop_requested:
         raise InterruptedError("Automação abortada manualmente pelo usuário.")
+
+def extrair_workspace_da_pasta(caminho_pasta):
+    try:
+        partes = os.path.normpath(caminho_pasta).split(os.sep)
+        for i, parte in enumerate(partes):
+            if parte.lower() == "planejamentos clientes":
+                if i + 1 < len(partes):
+                    return partes[i + 1]
+    except Exception as e:
+        log_to_ui(f"⚠️ Erro ao extrair workspace da pasta: {e}")
+    return None
+
 
 def pre_check_imagens(tarefas, pasta_imagens):
     faltando = []
@@ -477,7 +486,7 @@ def buscar_imagens(nome_tarefa, tipo_form, pasta_imagens):
 # ==========================================
 # MOTOR PLAYWRIGHT EKYTE
 # ==========================================
-def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invisivel):
+def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invisivel, criar_tarefas):
     global is_running, stop_requested
     try:
         tarefas = extrair_dados_do_texto(conteudo_texto)
@@ -547,11 +556,73 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
             
             verificar_parada()
 
+            if criar_tarefas:
+                log_to_ui("➕ Iniciando fluxo de Criação de Tarefas...")
+                
+                # 1. Create the first master task
+                log_to_ui("Criando tarefa base [ROBO]...")
+                page.locator("a[title='Adicionar tarefa']").first.click()
+                page.wait_for_timeout(2000)
+                verificar_parada()
+
+                # Select team template (Hardcoded "Equipe 1" for now)
+                log_to_ui("Selecionando equipe base (Equipe 1)...")
+                # Wait for the search input in the floating menu and type
+                page.locator("input[placeholder='Pesquisar']").first.fill("Equipe 1")
+                page.wait_for_timeout(1000)
+                # Click the first matching result. Adjust selector if necessary based on exact eKyte structure.
+                page.locator(".task-template-item").filter(has_text="Equipe 1").first.click()
+                page.wait_for_timeout(2000)
+                verificar_parada()
+
+                # Title modification
+                page.locator("input[name='title']").fill("[ROBO]")
+                
+                # Workspace selection
+                workspace_name = extrair_workspace_da_pasta(pasta_imagens)
+                if workspace_name:
+                    log_to_ui(f"Definindo Workspace para: {workspace_name}")
+                    # Click to open dropdown
+                    page.locator(".Select-multi-value-wrapper").click()
+                    page.wait_for_timeout(1000)
+                    # Type workspace name to filter
+                    page.keyboard.type(workspace_name)
+                    page.wait_for_timeout(1000)
+                    page.keyboard.press("Enter")
+                else:
+                    log_to_ui("⚠️ Não foi possível determinar o Workspace pela pasta. A tarefa será criada no Workspace atual.")
+                
+                verificar_parada()
+                page.locator("button.btn-primary:has-text('Criar')").click()
+                log_to_ui("✅ Tarefa base [ROBO] criada.")
+                page.wait_for_timeout(3000)
+                
+                # 2. Duplicate the task (total_tarefas - 1) times
+                duplications_needed = total_tarefas - 1
+                if duplications_needed > 0:
+                    log_to_ui(f"🔄 Duplicando tarefa base {duplications_needed} vezes...")
+                    for i in range(duplications_needed):
+                        verificar_parada()
+                        # Locate the first [ROBO] task and click the duplicate icon forcefully
+                        task_row = page.locator("text='[ROBO]'").first.locator("xpath=ancestor::tr")
+                        task_row.locator("i.material-icons[title='Duplicar']").click(force=True)
+                        page.wait_for_timeout(2000)
+                        
+                        page.locator("button.btn-primary:has-text('Avançar')").click()
+                        page.wait_for_timeout(1000)
+                        page.locator("button.btn-primary:has-text('Criar')").click()
+                        log_to_ui(f"✅ Duplicata {i+1}/{duplications_needed} criada.")
+                        page.wait_for_timeout(3000)
+                
+                log_to_ui("✅ Estrutura de tarefas pronta. Iniciando preenchimento...")
+            
+            verificar_parada()
             page.locator("text='[ROBO]'").first.click()
             page.wait_for_timeout(2000)
 
             for index, task in enumerate(tarefas):
                 verificar_parada()
+                
                 log_to_ui(f"\n🔄 Processando Tarefa {index+1}/{total_tarefas}: {task['nome']}")
                 
                 titulo_header = page.locator(".title-header").first
@@ -607,20 +678,39 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                             f"{CAROUSEL_MIN_IMAGES} imagens."
                         )
                     elif imagens:
-                        page.locator("div.attachment-task").click()
-                        with page.expect_file_chooser() as fc_info:
-                            page.locator("button.upload-button").click(force=True)
-                        fc_info.value.set_files(imagens)
-                        qtd_imagens = str(len(imagens))
-                        log_to_ui(f"   ⏳ Aguardando upload ({qtd_imagens} arquivo(s))...")
-                        verificar_parada()
-                        page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
-                        verificar_parada()
-
-                        if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
-                            log_to_ui("   ⏳ Aguardando processamento das imagens do Story...")
-                            page.wait_for_timeout(2500)
+                        if is_carrossel:
+                            # Sequential Upload for Carousel
+                            log_to_ui(f"   Iniciando upload sequencial de {len(imagens)} imagens do Carrossel...")
+                            for i, imagem_path in enumerate(imagens):
+                                verificar_parada()
+                                page.locator("div.attachment-task").click()
+                                with page.expect_file_chooser() as fc_info:
+                                    page.locator("button.upload-button").click(force=True)
+                                fc_info.value.set_files([imagem_path])
+                                
+                                current_count = str(i + 1)
+                                log_to_ui(f"   ⏳ Enviando arquivo {current_count}/{len(imagens)}...")
+                                # Increased timeout to 60s for Carousel images
+                                page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']").wait_for(timeout=60000)
+                            
+                            log_to_ui("   ✅ Upload do Carrossel concluído.")
+                        else:
+                            # Bulk Upload for regular forms (e.g. Story with multiple parts)
+                            page.locator("div.attachment-task").click()
+                            with page.expect_file_chooser() as fc_info:
+                                page.locator("button.upload-button").click(force=True)
+                            fc_info.value.set_files(imagens)
+                            qtd_imagens = str(len(imagens))
+                            log_to_ui(f"   ⏳ Aguardando upload ({qtd_imagens} arquivo(s))...")
                             verificar_parada()
+                            # Standard timeout for non-carousel
+                            page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                            verificar_parada()
+
+                            if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
+                                log_to_ui("   ⏳ Aguardando processamento das imagens do Story...")
+                                page.wait_for_timeout(2500)
+                                verificar_parada()
 
                         page.locator("button.btn-primary:has-text('Adicionar')").click()
                         page.wait_for_timeout(1000)
