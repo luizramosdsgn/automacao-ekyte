@@ -556,65 +556,80 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
             
             verificar_parada()
 
+            # ==========================================
+            # NOVO BLOCO: CRIAÇÃO E DUPLICAÇÃO
+            # ==========================================
             if criar_tarefas:
-                log_to_ui("➕ Iniciando fluxo de Criação de Tarefas...")
-                
-                # 1. Create the first master task
-                log_to_ui("Criando tarefa base [ROBO]...")
-                page.locator("a[title='Adicionar tarefa']").first.click()
-                page.wait_for_timeout(2000)
-                verificar_parada()
+                    self.log("➕ Iniciando fluxo de Criação de Tarefas...")
+                    
+                    self.log("Criando tarefa base [ROBO]...")
+                    page.locator("a[title='Adicionar tarefa']").first.click()
+                    
+                    # Aguarda o modal carregar totalmente
+                    page.locator("text='Adicionar tarefa'").first.wait_for(state="visible", timeout=10000)
+                    page.wait_for_timeout(1500)
+                    self.verificar_parada()
 
-                # Select team template (Hardcoded "Equipe 1" for now)
-                log_to_ui("Selecionando equipe base (Equipe 1)...")
-                # Wait for the search input in the floating menu and type
-                page.locator("input[placeholder='Pesquisar']").first.fill("Equipe 1")
-                page.wait_for_timeout(1000)
-                # Click the first matching result. Adjust selector if necessary based on exact eKyte structure.
-                page.locator(".task-template-item").filter(has_text="Equipe 1").first.click()
-                page.wait_for_timeout(2000)
-                verificar_parada()
-
-                # Title modification
-                page.locator("input[name='title']").fill("[ROBO]")
-                
-                # Workspace selection
-                workspace_name = extrair_workspace_da_pasta(pasta_imagens)
-                if workspace_name:
-                    log_to_ui(f"Definindo Workspace para: {workspace_name}")
-                    # Click to open dropdown
-                    page.locator(".Select-multi-value-wrapper").click()
-                    page.wait_for_timeout(1000)
-                    # Type workspace name to filter
-                    page.keyboard.type(workspace_name)
-                    page.wait_for_timeout(1000)
-                    page.keyboard.press("Enter")
-                else:
-                    log_to_ui("⚠️ Não foi possível determinar o Workspace pela pasta. A tarefa será criada no Workspace atual.")
-                
-                verificar_parada()
-                page.locator("button.btn-primary:has-text('Criar')").click()
-                log_to_ui("✅ Tarefa base [ROBO] criada.")
-                page.wait_for_timeout(3000)
-                
-                # 2. Duplicate the task (total_tarefas - 1) times
-                duplications_needed = total_tarefas - 1
-                if duplications_needed > 0:
-                    log_to_ui(f"🔄 Duplicando tarefa base {duplications_needed} vezes...")
-                    for i in range(duplications_needed):
-                        verificar_parada()
-                        # Locate the first [ROBO] task and click the duplicate icon forcefully
-                        task_row = page.locator("text='[ROBO]'").first.locator("xpath=ancestor::tr")
-                        task_row.locator("i.material-icons[title='Duplicar']").click(force=True)
-                        page.wait_for_timeout(2000)
+                    self.log("Selecionando equipe base (Equipe 1)...")
+                    
+                    # Clica diretamente no cartão visual que contém o texto "Equipe 1"
+                    cartao_equipe = page.locator("div.task-type-item").filter(has_text="Equipe 1").first
+                    
+                    # Fallback de segurança: Se a classe do cartão mudar, clica na div pai que segura o texto
+                    if not cartao_equipe.is_visible(timeout=2000):
+                        cartao_equipe = page.locator("div").filter(has_text="Equipe 1").nth(-1)
                         
-                        page.locator("button.btn-primary:has-text('Avançar')").click()
+                    cartao_equipe.click(force=True)
+                    page.wait_for_timeout(2500)
+                    self.verificar_parada()
+
+                    self.log("Preenchendo detalhes...")
+                    # Agora aguardamos a tela de Detalhes carregar antes de tentar digitar
+                    page.locator("input[name='title']").wait_for(state="visible", timeout=10000)
+                    page.locator("input[name='title']").fill("[ROBO]")
+                    
+                    workspace_name = self.extrair_workspace_da_pasta(self.pasta_imagens)
+                    if workspace_name:
+                        self.log(f"Definindo Workspace para: {workspace_name}")
+                        page.locator(".Select-multi-value-wrapper").click()
                         page.wait_for_timeout(1000)
-                        page.locator("button.btn-primary:has-text('Criar')").click()
-                        log_to_ui(f"✅ Duplicata {i+1}/{duplications_needed} criada.")
-                        page.wait_for_timeout(3000)
-                
-                log_to_ui("✅ Estrutura de tarefas pronta. Iniciando preenchimento...")
+                        page.keyboard.type(workspace_name)
+                        page.wait_for_timeout(1500)
+                        page.keyboard.press("Enter")
+                    else:
+                        self.log("⚠️ Workspace não extraído. Usando o atual.")
+                    
+                    self.verificar_parada()
+                    page.locator("button.btn-primary:has-text('Avançar')").click()
+                    page.wait_for_timeout(1000)
+                    page.locator("button.btn-primary:has-text('Criar')").click()
+                    
+                    self.log("✅ Tarefa base [ROBO] criada.")
+                    page.wait_for_timeout(3500)
+                    
+                    duplications_needed = total_tarefas - 1
+                    if duplications_needed > 0:
+                        self.log(f"🔄 Duplicando tarefa base {duplications_needed} vezes...")
+                        for i in range(duplications_needed):
+                            self.verificar_parada()
+                            
+                            # Força o clique no ícone de duplicar do primeiro [ROBO] da lista
+                            linha_tarefa = page.locator("text='[ROBO]'").first.locator("xpath=ancestor::tr")
+                            linha_tarefa.locator("i.material-icons[title='Duplicar']").click(force=True)
+                            
+                            # Aguarda o modal de edição (que já vem preenchido) abrir
+                            page.locator("input[name='title']").wait_for(state="visible", timeout=10000)
+                            page.wait_for_timeout(1500)
+                            
+                            page.locator("button.btn-primary:has-text('Avançar')").click()
+                            page.wait_for_timeout(1000)
+                            page.locator("button.btn-primary:has-text('Criar')").click()
+                            
+                            self.log(f"✅ Duplicata {i+1}/{duplications_needed} criada.")
+                            page.wait_for_timeout(3500)
+                    
+                    self.log("✅ Estrutura de tarefas pronta. Iniciando preenchimento...")
+            # ==========================================
             
             verificar_parada()
             page.locator("text='[ROBO]'").first.click()
@@ -678,42 +693,66 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                             f"{CAROUSEL_MIN_IMAGES} imagens."
                         )
                     elif imagens:
-                        if is_carrossel:
-                            # Sequential Upload for Carousel
-                            log_to_ui(f"   Iniciando upload sequencial de {len(imagens)} imagens do Carrossel...")
-                            for i, imagem_path in enumerate(imagens):
-                                verificar_parada()
-                                page.locator("div.attachment-task").click()
+                        # ==========================================
+                            # LOGICA DE UPLOAD (Simples x Sequencial)
+                            # ==========================================
+                            if is_carrossel:
+                                self.log(f"   Iniciando upload sequencial de {len(imagens)} imagens do Carrossel...")
+                                
+                                # O eKyte precisa que a caixa de anexo ("div.attachment-task") seja clicada separadamente
+                                # para cada imagem do carrossel, imitando um usuário adicionando uma a uma.
+                                for i, imagem_path in enumerate(imagens):
+                                    self.verificar_parada()
+                                    
+                                    # Esperamos o botão de upload estar visível e pronto
+                                    area_upload = page.locator("div.attachment-task")
+                                    area_upload.wait_for(state="visible")
+                                    
+                                    with page.expect_file_chooser() as fc_info:
+                                        # Forçamos o clique bem no meio do botão "+ Clique ou arraste"
+                                        page.locator("button.upload-button").click(force=True)
+                                    fc_info.value.set_files([imagem_path])
+                                    
+                                    current_count = str(i + 1)
+                                    self.log(f"   ⏳ Enviando arquivo {current_count}/{len(imagens)}...")
+                                    
+                                    # Aguarda a bolinha confirmar que o arquivo subiu e foi processado
+                                    page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']").wait_for(timeout=60000)
+                                    
+                                    # ESPERA VITAL: Delay obrigatório de 1s para o sistema do eKyte digerir o arquivo injetado
+                                    page.wait_for_timeout(1000)
+                                
+                                self.log("   ✅ Upload do Carrossel concluído.")
+                                
+                            else:
+                                # Upload em Lote (Feed/Story)
+                                area_upload = page.locator("div.attachment-task")
+                                area_upload.wait_for(state="visible")
+                                
                                 with page.expect_file_chooser() as fc_info:
                                     page.locator("button.upload-button").click(force=True)
-                                fc_info.value.set_files([imagem_path])
+                                fc_info.value.set_files(imagens)
+
+                                qtd_imagens = str(len(imagens))
+                                self.log(f"Aguardando o eKyte validar {qtd_imagens} arquivo(s)...")
+
+                                self.verificar_parada()
+                                page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
                                 
-                                current_count = str(i + 1)
-                                log_to_ui(f"   ⏳ Enviando arquivo {current_count}/{len(imagens)}...")
-                                # Increased timeout to 60s for Carousel images
-                                page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']").wait_for(timeout=60000)
-                            
-                            log_to_ui("   ✅ Upload do Carrossel concluído.")
-                        else:
-                            # Bulk Upload for regular forms (e.g. Story with multiple parts)
-                            page.locator("div.attachment-task").click()
-                            with page.expect_file_chooser() as fc_info:
-                                page.locator("button.upload-button").click(force=True)
-                            fc_info.value.set_files(imagens)
-                            qtd_imagens = str(len(imagens))
-                            log_to_ui(f"   ⏳ Aguardando upload ({qtd_imagens} arquivo(s))...")
-                            verificar_parada()
-                            # Standard timeout for non-carousel
-                            page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
-                            verificar_parada()
+                                # ESPERA VITAL: Delay obrigatório de 1s para o arquivo fixar na memória do eKyte
+                                page.wait_for_timeout(1000)
+                                self.verificar_parada()
 
-                            if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
-                                log_to_ui("   ⏳ Aguardando processamento das imagens do Story...")
-                                page.wait_for_timeout(2500)
-                                verificar_parada()
+                                if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
+                                    self.log("Aguardando o processamento das imagens do Story...")
+                                    page.wait_for_timeout(2500)
+                                    self.verificar_parada()
 
-                        page.locator("button.btn-primary:has-text('Adicionar')").click()
-                        page.wait_for_timeout(1000)
+                            # Finalmente, clica no botão azul "Adicionar" (ou "Salvar") da janela de criação do form
+                            btn_adicionar = page.locator("button.btn-primary:has-text('Adicionar')")
+                            if btn_adicionar.is_visible():
+                                btn_adicionar.click()
+                                page.wait_for_timeout(1000)
                     
                     verificar_parada()
                     page.locator("div.button-save button:has-text('Salvar')").click()

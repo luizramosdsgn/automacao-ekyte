@@ -82,7 +82,7 @@ body {
     padding: 28px 22px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 24px;
     position: relative;
     border-radius: 0;
 }
@@ -243,7 +243,7 @@ body {
 }
 
 .btn-primary:hover {
-    background: #f0f0f8;
+    background: var(--green);
     transform: translateY(-1px);
     box-shadow: 0 6px 28px rgba(0,0,0,.3);
 }
@@ -325,7 +325,7 @@ textarea {
     background: var(--bg-input);
     border: 1px solid var(--border-input);
     color: var(--text-primary);
-    height: 160px;
+    height: 240px;
 }
 
 #texto-docs:focus {
@@ -453,7 +453,7 @@ textarea {
 }
 
 .toggle-switch input:checked + .slider {
-    background-color: var(--accent);
+    background-color: var(--green)
 }
 
 .toggle-switch input:checked + .slider:before {
