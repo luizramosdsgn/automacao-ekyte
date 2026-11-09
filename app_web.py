@@ -243,6 +243,26 @@ def iniciar_automacao_py(email, senha, pasta, texto, modo_invisivel, criar_taref
         log_to_ui("❌ Nenhuma tarefa válida encontrada.")
         eel.restaurarBotoes()
         return
+        
+    equipe_selecionada = "Equipe 1"
+    
+    if criar_tarefas:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        resposta_equipe = simpledialog.askstring(
+            "Seleção de Equipe",
+            "Qual equipe deve ser utilizada para criar as tarefas? (Ex: Equipe 1, Equipe 2)",
+            initialvalue="Equipe 1",
+            parent=root
+        )
+        root.destroy()
+        
+        if not resposta_equipe:
+            log_to_ui("🛑 Automação cancelada. A equipe não foi informada.")
+            eel.restaurarBotoes()
+            return
+        equipe_selecionada = resposta_equipe.strip()
 
     qtd_feed = sum(1 for t in tarefas_preview for f in t['tipos_formulario'] if 'feed' in f.lower() and 'carrossel' not in f.lower())
     qtd_story = sum(1 for t in tarefas_preview for f in t['tipos_formulario'] if any(x in f.lower() for x in ['story', 'reel', 'tiktok', 'short']) and 'carrossel' not in f.lower())
@@ -251,7 +271,7 @@ def iniciar_automacao_py(email, senha, pasta, texto, modo_invisivel, criar_taref
     root = tk.Tk()
     root.withdraw()
     root.attributes('-topmost', True)
-    modo_texto = "CRIANDO NOVAS TAREFAS" if criar_tarefas else "EDITANDO TEMPLATE [ROBO]"
+    modo_texto = f"CRIANDO NOVAS TAREFAS ({equipe_selecionada})" if criar_tarefas else "EDITANDO TEMPLATES EXISTENTES [ROBO]"
     msg_resumo = (
         f"Modo: {modo_texto}\n\n"
         f"Foram identificadas {len(tarefas_preview)} postagem(ns).\n\n"
@@ -278,7 +298,7 @@ def iniciar_automacao_py(email, senha, pasta, texto, modo_invisivel, criar_taref
     eel.atualizarProgresso(0, "0%")
     
     log_to_ui("✅ Iniciando automação...")
-    thread = threading.Thread(target=rodar_automacao_core, args=(email, senha, pasta, texto, modo_invisivel, criar_tarefas))
+    thread = threading.Thread(target=rodar_automacao_core, args=(email, senha, pasta, texto, modo_invisivel, criar_tarefas, equipe_selecionada))
     thread.start()
 
 # ==========================================
@@ -293,13 +313,13 @@ def extrair_workspace_da_pasta(caminho_pasta):
     try:
         partes = os.path.normpath(caminho_pasta).split(os.sep)
         for i, parte in enumerate(partes):
-            if parte.lower() == "planejamentos clientes":
+            # Usando 'in' fica muito mais seguro contra espaços extras ou formatações invisíveis
+            if "planejamentos clientes" in parte.lower():
                 if i + 1 < len(partes):
                     return partes[i + 1]
     except Exception as e:
         log_to_ui(f"⚠️ Erro ao extrair workspace da pasta: {e}")
     return None
-
 
 def pre_check_imagens(tarefas, pasta_imagens):
     faltando = []
@@ -486,7 +506,7 @@ def buscar_imagens(nome_tarefa, tipo_form, pasta_imagens):
 # ==========================================
 # MOTOR PLAYWRIGHT EKYTE
 # ==========================================
-def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invisivel, criar_tarefas):
+def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invisivel, criar_tarefas, equipe_selecionada):
     global is_running, stop_requested
     try:
         tarefas = extrair_dados_do_texto(conteudo_texto)
@@ -550,7 +570,7 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                 page.wait_for_timeout(1000) 
                 page.locator("div.date-picker-lateral-infos a").filter(has_text="Todo o período").click()
                 page.wait_for_timeout(500)
-                page.locator("div.console-footer-apply button.btn-primary:has-text('Aplicar')").click()
+                page.locator("button.btn-primary", has_text=re.compile(r"^Aplicar$")).first.click()
                 page.wait_for_timeout(3000) 
                 log_to_ui("✅ Filtro ajustado com sucesso.")
             
@@ -560,78 +580,88 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
             # NOVO BLOCO: CRIAÇÃO E DUPLICAÇÃO
             # ==========================================
             if criar_tarefas:
-                    self.log("➕ Iniciando fluxo de Criação de Tarefas...")
-                    
-                    self.log("Criando tarefa base [ROBO]...")
-                    page.locator("a[title='Adicionar tarefa']").first.click()
-                    
-                    # Aguarda o modal carregar totalmente
-                    page.locator("text='Adicionar tarefa'").first.wait_for(state="visible", timeout=10000)
-                    page.wait_for_timeout(1500)
-                    self.verificar_parada()
+                log_to_ui("➕ Iniciando fluxo de Criação de Tarefas...")
+                log_to_ui("Criando tarefa base [ROBO]...")
+                page.locator("a[title='Adicionar tarefa']").first.click()
+                page.locator("text='Adicionar tarefa'").first.wait_for(state="visible", timeout=10000)
+                page.wait_for_timeout(1500)
+                verificar_parada()
 
-                    self.log("Selecionando equipe base (Equipe 1)...")
-                    
-                    # Clica diretamente no cartão visual que contém o texto "Equipe 1"
-                    cartao_equipe = page.locator("div.task-type-item").filter(has_text="Equipe 1").first
-                    
-                    # Fallback de segurança: Se a classe do cartão mudar, clica na div pai que segura o texto
-                    if not cartao_equipe.is_visible(timeout=2000):
-                        cartao_equipe = page.locator("div").filter(has_text="Equipe 1").nth(-1)
+                log_to_ui(f"Selecionando equipe base ({equipe_selecionada})...")
+                page.locator("input[placeholder='Buscar tipo de tarefa']").first.fill(equipe_selecionada)
+                page.wait_for_timeout(1500)
+                cartao_equipe = page.locator("div.task-type-item").filter(has_text=equipe_selecionada).first
+                if not cartao_equipe.is_visible(timeout=2000):
+                    cartao_equipe = page.locator("div").filter(has_text=equipe_selecionada).nth(-1)
+                
+                cartao_equipe.click(force=True)
+                page.wait_for_timeout(2500)
+                verificar_parada()
+
+                log_to_ui("Preenchendo detalhes...")
+                page.locator("input[name='title']").wait_for(state="visible", timeout=10000)
+                page.locator("input[name='title']").fill("[ROBO]")
+                
+                workspace_name = extrair_workspace_da_pasta(pasta_imagens)
+                
+                if workspace_name:
+                    log_to_ui(f"Definindo Workspace para: {workspace_name}")
+                    try:
+                        # 1. Clica exatamente na template de valor do Workspace mapeada por você
+                        page.locator("label", has_text="Workspace").locator("xpath=..").locator(".Select-value-template").first.click(force=True)
+                    except:
+                        # Fallback
+                        page.locator(".Select-value-template").first.click(force=True)
                         
-                    cartao_equipe.click(force=True)
-                    page.wait_for_timeout(2500)
-                    self.verificar_parada()
-
-                    self.log("Preenchendo detalhes...")
-                    # Agora aguardamos a tela de Detalhes carregar antes de tentar digitar
-                    page.locator("input[name='title']").wait_for(state="visible", timeout=10000)
-                    page.locator("input[name='title']").fill("[ROBO]")
+                    page.wait_for_timeout(1500)
                     
-                    workspace_name = self.extrair_workspace_da_pasta(self.pasta_imagens)
-                    if workspace_name:
-                        self.log(f"Definindo Workspace para: {workspace_name}")
-                        page.locator(".Select-multi-value-wrapper").click()
-                        page.wait_for_timeout(1000)
+                    try:
+                        # 2. Preenche DIRETAMENTE a barra de pesquisa flutuante pelo ID exato
+                        barra_pesquisa = page.locator("input#Select-input").first
+                        barra_pesquisa.fill(workspace_name)
+                    except:
+                        # Fallback se a barra demorar a focar
                         page.keyboard.type(workspace_name)
+                        
+                    page.wait_for_timeout(1500)
+                    page.keyboard.press("Enter")
+                else:
+                    log_to_ui("⚠️ Workspace não extraído. Usando o atual.")
+                
+                verificar_parada()
+                
+                # CLIQUE NO FLUXO DE TRABALHO ANTES DE CRIAR
+                log_to_ui("Acessando aba Fluxo de Trabalho...")
+                page.locator("span", has_text="Fluxo de trabalho").first.click(force=True)
+                page.wait_for_timeout(1000)
+                
+                # Clique em Criar
+                page.locator("button.btn-primary", has_text=re.compile(r"^Criar$")).first.click()
+                
+                log_to_ui("✅ Tarefa base [ROBO] criada.")
+                page.wait_for_timeout(3500)
+                
+                duplications_needed = total_tarefas - 1
+                if duplications_needed > 0:
+                    log_to_ui(f"🔄 Duplicando tarefa base {duplications_needed} vezes...")
+                    for i in range(duplications_needed):
+                        verificar_parada()
+                        linha_tarefa = page.locator("text='[ROBO]'").first.locator("xpath=ancestor::tr")
+                        linha_tarefa.locator("i.material-icons[title='Duplicar']").click(force=True)
+                        page.locator("input[name='title']").wait_for(state="visible", timeout=10000)
                         page.wait_for_timeout(1500)
-                        page.keyboard.press("Enter")
-                    else:
-                        self.log("⚠️ Workspace não extraído. Usando o atual.")
-                    
-                    self.verificar_parada()
-                    page.locator("button.btn-primary:has-text('Avançar')").click()
-                    page.wait_for_timeout(1000)
-                    page.locator("button.btn-primary:has-text('Criar')").click()
-                    
-                    self.log("✅ Tarefa base [ROBO] criada.")
-                    page.wait_for_timeout(3500)
-                    
-                    duplications_needed = total_tarefas - 1
-                    if duplications_needed > 0:
-                        self.log(f"🔄 Duplicando tarefa base {duplications_needed} vezes...")
-                        for i in range(duplications_needed):
-                            self.verificar_parada()
-                            
-                            # Força o clique no ícone de duplicar do primeiro [ROBO] da lista
-                            linha_tarefa = page.locator("text='[ROBO]'").first.locator("xpath=ancestor::tr")
-                            linha_tarefa.locator("i.material-icons[title='Duplicar']").click(force=True)
-                            
-                            # Aguarda o modal de edição (que já vem preenchido) abrir
-                            page.locator("input[name='title']").wait_for(state="visible", timeout=10000)
-                            page.wait_for_timeout(1500)
-                            
-                            page.locator("button.btn-primary:has-text('Avançar')").click()
-                            page.wait_for_timeout(1000)
-                            page.locator("button.btn-primary:has-text('Criar')").click()
-                            
-                            self.log(f"✅ Duplicata {i+1}/{duplications_needed} criada.")
-                            page.wait_for_timeout(3500)
-                    
-                    self.log("✅ Estrutura de tarefas pronta. Iniciando preenchimento...")
+                        
+                        # Acessa Fluxo de Trabalho na duplicação também, como medida de segurança
+                        page.locator("span", has_text="Fluxo de trabalho").first.click(force=True)
+                        page.wait_for_timeout(1000)
+                        
+                        page.locator("button.btn-primary", has_text=re.compile(r"^Criar$")).first.click()
+                        log_to_ui(f"✅ Duplicata {i+1}/{duplications_needed} criada.")
+                        page.wait_for_timeout(3500)
+                
+                log_to_ui("✅ Estrutura de tarefas pronta. Iniciando preenchimento...")
             # ==========================================
             
-            verificar_parada()
             page.locator("text='[ROBO]'").first.click()
             page.wait_for_timeout(2000)
 
@@ -693,66 +723,59 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                             f"{CAROUSEL_MIN_IMAGES} imagens."
                         )
                     elif imagens:
-                        # ==========================================
-                            # LOGICA DE UPLOAD (Simples x Sequencial)
+                        if is_carrossel:
                             # ==========================================
-                            if is_carrossel:
-                                self.log(f"   Iniciando upload sequencial de {len(imagens)} imagens do Carrossel...")
-                                
-                                # O eKyte precisa que a caixa de anexo ("div.attachment-task") seja clicada separadamente
-                                # para cada imagem do carrossel, imitando um usuário adicionando uma a uma.
-                                for i, imagem_path in enumerate(imagens):
-                                    self.verificar_parada()
-                                    
-                                    # Esperamos o botão de upload estar visível e pronto
-                                    area_upload = page.locator("div.attachment-task")
-                                    area_upload.wait_for(state="visible")
-                                    
-                                    with page.expect_file_chooser() as fc_info:
-                                        # Forçamos o clique bem no meio do botão "+ Clique ou arraste"
-                                        page.locator("button.upload-button").click(force=True)
-                                    fc_info.value.set_files([imagem_path])
-                                    
-                                    current_count = str(i + 1)
-                                    self.log(f"   ⏳ Enviando arquivo {current_count}/{len(imagens)}...")
-                                    
-                                    # Aguarda a bolinha confirmar que o arquivo subiu e foi processado
-                                    page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']").wait_for(timeout=60000)
-                                    
-                                    # ESPERA VITAL: Delay obrigatório de 1s para o sistema do eKyte digerir o arquivo injetado
-                                    page.wait_for_timeout(1000)
-                                
-                                self.log("   ✅ Upload do Carrossel concluído.")
-                                
-                            else:
-                                # Upload em Lote (Feed/Story)
+                            # LOGICA DE UPLOAD CARROSSEL
+                            # ==========================================
+                            log_to_ui(f"   Iniciando upload sequencial de {len(imagens)} imagens do Carrossel...")
+                            for i, imagem_path in enumerate(imagens):
+                                verificar_parada()
                                 area_upload = page.locator("div.attachment-task")
                                 area_upload.wait_for(state="visible")
                                 
                                 with page.expect_file_chooser() as fc_info:
                                     page.locator("button.upload-button").click(force=True)
-                                fc_info.value.set_files(imagens)
-
-                                qtd_imagens = str(len(imagens))
-                                self.log(f"Aguardando o eKyte validar {qtd_imagens} arquivo(s)...")
-
-                                self.verificar_parada()
-                                page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                                fc_info.value.set_files([imagem_path])
                                 
-                                # ESPERA VITAL: Delay obrigatório de 1s para o arquivo fixar na memória do eKyte
+                                current_count = str(i + 1)
+                                log_to_ui(f"   ⏳ Enviando arquivo {current_count}/{len(imagens)}...")
+                                
+                                page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']").wait_for(timeout=60000)
+                                
+                                # ESPERA OBRIGATÓRIA: Delay de 1s p/ o eKyte estabilizar após a bolinha
                                 page.wait_for_timeout(1000)
-                                self.verificar_parada()
+                            
+                            log_to_ui("   ✅ Upload do Carrossel concluído.")
+                        else:
+                            # ==========================================
+                            # LOGICA DE UPLOAD COMUM (Story/Feed)
+                            # ==========================================
+                            area_upload = page.locator("div.attachment-task")
+                            area_upload.wait_for(state="visible")
+                                
+                            with page.expect_file_chooser() as fc_info:
+                                page.locator("button.upload-button").click(force=True)
+                            fc_info.value.set_files(imagens)
+                            
+                            qtd_imagens = str(len(imagens))
+                            log_to_ui(f"   ⏳ Aguardando upload ({qtd_imagens} arquivo(s))...")
+                            verificar_parada()
+                            page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                            
+                            # ESPERA OBRIGATÓRIA: Delay de 1s após a bolinha
+                            page.wait_for_timeout(1000)
+                            verificar_parada()
 
-                                if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
-                                    self.log("Aguardando o processamento das imagens do Story...")
-                                    page.wait_for_timeout(2500)
-                                    self.verificar_parada()
+                            if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
+                                log_to_ui("   ⏳ Processando imagens do Story...")
+                                page.wait_for_timeout(2500)
+                                verificar_parada()
 
-                            # Finalmente, clica no botão azul "Adicionar" (ou "Salvar") da janela de criação do form
-                            btn_adicionar = page.locator("button.btn-primary:has-text('Adicionar')")
-                            if btn_adicionar.is_visible():
-                                btn_adicionar.click()
-                                page.wait_for_timeout(1000)
+                        # Usa first.click() também no adicionar por segurança
+                        btn_adicionar = page.locator("button.btn-primary:has-text('Adicionar')")
+                        if btn_adicionar.is_visible():
+                            btn_adicionar.first.click()
+                            page.wait_for_timeout(1000)
                     
                     verificar_parada()
                     page.locator("div.button-save button:has-text('Salvar')").click()
