@@ -607,21 +607,18 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                 if workspace_name:
                     log_to_ui(f"Definindo Workspace para: {workspace_name}")
                     try:
-                        # 1. Clica exatamente na template de valor do Workspace mapeada por você
-                        page.locator("label", has_text="Workspace").locator("xpath=..").locator(".Select-value-template").first.click(force=True)
+                        # Busca o container correto com base na label Workspace
+                        page.locator("label").filter(has_text="Workspace").locator("xpath=..").locator("div[class*='Select']").first.click(force=True)
                     except:
-                        # Fallback
                         page.locator(".Select-value-template").first.click(force=True)
                         
                     page.wait_for_timeout(1500)
                     
                     try:
-                        # 2. Preenche DIRETAMENTE a barra de pesquisa flutuante pelo ID exato
-                        barra_pesquisa = page.locator("input#Select-input").first
-                        barra_pesquisa.fill(workspace_name)
+                        # Usa .type() simulando digitação humana lenta para forçar a busca do sistema
+                        page.locator("input#Select-input").filter(state="visible").first.type(workspace_name, delay=100)
                     except:
-                        # Fallback se a barra demorar a focar
-                        page.keyboard.type(workspace_name)
+                        page.keyboard.type(workspace_name, delay=100)
                         
                     page.wait_for_timeout(1500)
                     page.keyboard.press("Enter")
@@ -630,12 +627,11 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                 
                 verificar_parada()
                 
-                # CLIQUE NO FLUXO DE TRABALHO ANTES DE CRIAR
+                # CLIQUE CORRETO NA ABA FLUXO DE TRABALHO
                 log_to_ui("Acessando aba Fluxo de Trabalho...")
-                page.locator("span", has_text="Fluxo de trabalho").first.click(force=True)
-                page.wait_for_timeout(1000)
+                page.locator("div.tab").filter(has_text=re.compile(r"Fluxo de trabalho", re.IGNORECASE)).first.click(force=True)
+                page.wait_for_timeout(1500)
                 
-                # Clique em Criar
                 page.locator("button.btn-primary", has_text=re.compile(r"^Criar$")).first.click()
                 
                 log_to_ui("✅ Tarefa base [ROBO] criada.")
@@ -651,9 +647,9 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                         page.locator("input[name='title']").wait_for(state="visible", timeout=10000)
                         page.wait_for_timeout(1500)
                         
-                        # Acessa Fluxo de Trabalho na duplicação também, como medida de segurança
-                        page.locator("span", has_text="Fluxo de trabalho").first.click(force=True)
-                        page.wait_for_timeout(1000)
+                        # CLIQUE CORRETO NA ABA FLUXO DE TRABALHO (Na duplicação)
+                        page.locator("div.tab").filter(has_text=re.compile(r"Fluxo de trabalho", re.IGNORECASE)).first.click(force=True)
+                        page.wait_for_timeout(1500)
                         
                         page.locator("button.btn-primary", has_text=re.compile(r"^Criar$")).first.click()
                         log_to_ui(f"✅ Duplicata {i+1}/{duplications_needed} criada.")
@@ -661,7 +657,7 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                 
                 log_to_ui("✅ Estrutura de tarefas pronta. Iniciando preenchimento...")
             # ==========================================
-            
+
             page.locator("text='[ROBO]'").first.click()
             page.wait_for_timeout(2000)
 
@@ -718,20 +714,22 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                     imagens = buscar_imagens(task['nome'], tipo_form, pasta_imagens)
 
                     if is_carrossel and len(imagens) < CAROUSEL_MIN_IMAGES:
-                        log_to_ui(
-                            f"Carrossel de {task['nome']} sem upload: são necessárias pelo menos "
-                            f"{CAROUSEL_MIN_IMAGES} imagens."
-                        )
+                        log_to_ui(f"Carrossel de {task['nome']} sem upload: são necessárias pelo menos {CAROUSEL_MIN_IMAGES} imagens.")
                     elif imagens:
                         if is_carrossel:
-                            # ==========================================
-                            # LOGICA DE UPLOAD CARROSSEL
-                            # ==========================================
                             log_to_ui(f"   Iniciando upload sequencial de {len(imagens)} imagens do Carrossel...")
                             for i, imagem_path in enumerate(imagens):
                                 verificar_parada()
-                                area_upload = page.locator("div.attachment-task")
-                                area_upload.wait_for(state="visible")
+                                
+                                # NOVO: Busca e clica no botão textual "Adicionar mídia"
+                                if page.locator("text='Adicionar mídia'").is_visible():
+                                    page.locator("text='Adicionar mídia'").first.click(force=True)
+                                elif page.locator("text='Adicionar Mídia'").is_visible():
+                                    page.locator("text='Adicionar Mídia'").first.click(force=True)
+                                else:
+                                    page.locator("div.attachment-task").first.click(force=True)
+                                
+                                page.wait_for_timeout(1500)
                                 
                                 with page.expect_file_chooser() as fc_info:
                                     page.locator("button.upload-button").click(force=True)
@@ -741,18 +739,21 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                                 log_to_ui(f"   ⏳ Enviando arquivo {current_count}/{len(imagens)}...")
                                 
                                 page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']").wait_for(timeout=60000)
+                                # Aumento de segurança: 1.5s após processar a bolinha
+                                page.wait_for_timeout(1500)
                                 
-                                # ESPERA OBRIGATÓRIA: Delay de 1s p/ o eKyte estabilizar após a bolinha
-                                page.wait_for_timeout(1000)
-                            
                             log_to_ui("   ✅ Upload do Carrossel concluído.")
                         else:
-                            # ==========================================
-                            # LOGICA DE UPLOAD COMUM (Story/Feed)
-                            # ==========================================
-                            area_upload = page.locator("div.attachment-task")
-                            area_upload.wait_for(state="visible")
+                            # NOVO: Busca e clica no botão textual "Adicionar mídia" (Para Feed/Story)
+                            if page.locator("text='Adicionar mídia'").is_visible():
+                                page.locator("text='Adicionar mídia'").first.click(force=True)
+                            elif page.locator("text='Adicionar Mídia'").is_visible():
+                                page.locator("text='Adicionar Mídia'").first.click(force=True)
+                            else:
+                                page.locator("div.attachment-task").first.click(force=True)
                                 
+                            page.wait_for_timeout(1500)
+
                             with page.expect_file_chooser() as fc_info:
                                 page.locator("button.upload-button").click(force=True)
                             fc_info.value.set_files(imagens)
@@ -760,18 +761,17 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                             qtd_imagens = str(len(imagens))
                             log_to_ui(f"   ⏳ Aguardando upload ({qtd_imagens} arquivo(s))...")
                             verificar_parada()
-                            page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
                             
-                            # ESPERA OBRIGATÓRIA: Delay de 1s após a bolinha
-                            page.wait_for_timeout(1000)
+                            page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                            # Aumento de segurança: 1.5s após processar a bolinha
+                            page.wait_for_timeout(1500)
                             verificar_parada()
-
+                            
                             if any(k in tipo_form.lower() for k in ["story", "stories", "storie"]):
                                 log_to_ui("   ⏳ Processando imagens do Story...")
                                 page.wait_for_timeout(2500)
                                 verificar_parada()
 
-                        # Usa first.click() também no adicionar por segurança
                         btn_adicionar = page.locator("button.btn-primary:has-text('Adicionar')")
                         if btn_adicionar.is_visible():
                             btn_adicionar.first.click()
