@@ -158,6 +158,12 @@ O design segue o conceito de **Dashboard Moderno** inspirado em painéis de cont
 - **Fonte:** Monospace (Cascadia Code > Fira Code > Consolas)
 - **Borda:** `--border-subtle`
 
+### 5.6 Ícones SVG Padronizados
+
+- **Padrão:** SVGs inline unificados (`viewBox="0 0 24 24"`, `stroke="currentColor"`, `stroke-width="2"`, `fill="none"`)
+- **Tamanho:** `.icon` 18×18px (títulos), `.btn .icon` e `.btn-icon .icon` 16×16px
+- **Sem dependência externa:** 100% offline, sem CDNs ou fontes de terceiros, com herança natural de cor via `currentColor`
+
 ---
 
 ## 6. Efeitos e Transições

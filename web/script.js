@@ -1,5 +1,11 @@
 let pastaSelecionada = "";
 
+const ICONS = {
+    eye: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+    eyeOff: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`,
+    stop: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>`
+};
+
 // Carrega os dados salvos do JSON automaticamente ao abrir o app
 window.addEventListener("DOMContentLoaded", async () => {
     let config = await eel.carregar_config_py()();
@@ -39,9 +45,10 @@ async function iniciarRobo() {
     let criarTarefas = document.getElementById("criar-tarefas").checked;
     
     document.getElementById("btn-iniciar").classList.add("hidden");
-    document.getElementById("btn-parar").classList.remove("hidden");
-    document.getElementById("btn-parar").innerText = "🛑 PARAR AUTOMAÇÃO";
-    document.getElementById("btn-parar").disabled = false;
+    const btnParar = document.getElementById("btn-parar");
+    btnParar.classList.remove("hidden");
+    btnParar.innerHTML = `${ICONS.stop} PARAR AUTOMAÇÃO`;
+    btnParar.disabled = false;
     document.getElementById("btn-pasta").disabled = true;
     document.getElementById("btn-formatar").disabled = true;
 
@@ -51,7 +58,7 @@ async function iniciarRobo() {
 
 async function pararRobo() {
     let btnParar = document.getElementById("btn-parar");
-    btnParar.innerText = "🛑 CANCELANDO...";
+    btnParar.innerHTML = `${ICONS.stop} CANCELANDO...`;
     btnParar.disabled = true;
     await eel.parar_automacao_py()();
 }
@@ -59,7 +66,7 @@ async function pararRobo() {
 async function padronizarTexto() {
     let texto = document.getElementById("texto-docs").value;
     let textoLimpo = await eel.padronizar_texto_py(texto, pastaSelecionada)();
-    if(textoLimpo) {
+    if (textoLimpo) {
         document.getElementById("texto-docs").value = textoLimpo;
     }
 }
@@ -70,12 +77,12 @@ function alternarVisibilidadeSenha() {
 
     if (campoSenha.type === "password") {
         campoSenha.type = "text";
-        btnToggle.innerText = "🙈";
+        btnToggle.innerHTML = ICONS.eyeOff;
         btnToggle.setAttribute("aria-label", "Ocultar senha");
         btnToggle.title = "Ocultar senha";
     } else {
         campoSenha.type = "password";
-        btnToggle.innerText = "👁️";
+        btnToggle.innerHTML = ICONS.eye;
         btnToggle.setAttribute("aria-label", "Mostrar senha");
         btnToggle.title = "Mostrar senha";
     }
@@ -101,8 +108,10 @@ function atualizarProgresso(porcentagem, texto) {
 eel.expose(restaurarBotoes);
 function restaurarBotoes() {
     document.getElementById("btn-iniciar").classList.remove("hidden");
-    document.getElementById("btn-parar").classList.add("hidden");
-    document.getElementById("btn-parar").disabled = false;
+    const btnParar = document.getElementById("btn-parar");
+    btnParar.classList.add("hidden");
+    btnParar.innerHTML = `${ICONS.stop} PARAR AUTOMAÇÃO`;
+    btnParar.disabled = false;
     document.getElementById("btn-pasta").disabled = false;
     document.getElementById("btn-formatar").disabled = false;
 }

@@ -184,6 +184,28 @@ body {
     color: #fff;
 }
 
+/* ---------- ICONS ---------- */
+.icon {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+}
+
+.btn .icon {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-icon .icon {
+    width: 16px;
+    height: 16px;
+}
+
 /* ---------- SIDEBAR BUTTONS ---------- */
 .btn {
     border: none;
@@ -246,6 +268,7 @@ body {
     background: var(--green);
     transform: translateY(-1px);
     box-shadow: 0 6px 28px rgba(0,0,0,.3);
+    color: var(--text-primary);
 }
 
 .btn-primary:active {
@@ -453,7 +476,7 @@ textarea {
 }
 
 .toggle-switch input:checked + .slider {
-    background-color: var(--green)
+    background-color: var(--green);
 }
 
 .toggle-switch input:checked + .slider:before {
