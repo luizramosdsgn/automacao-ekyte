@@ -718,44 +718,39 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                     elif imagens:
                         if is_carrossel:
                             log_to_ui(f"   Iniciando upload sequencial de {len(imagens)} imagens do Carrossel...")
+                            
+                            # 1. Abre a biblioteca de mídia UMA VEZ
+                            page.locator("div.attachment-task").first.click(force=True)
+                            page.wait_for_timeout(1500)
+                            
+                            # 2. Loop INJETANDO OS ARQUIVOS
                             for i, imagem_path in enumerate(imagens):
                                 verificar_parada()
                                 
-                                # NOVO: Busca e clica no botão textual "Adicionar mídia"
-                                if page.locator("text='Adicionar mídia'").is_visible():
-                                    page.locator("text='Adicionar mídia'").first.click(force=True)
-                                elif page.locator("text='Adicionar Mídia'").is_visible():
-                                    page.locator("text='Adicionar Mídia'").first.click(force=True)
-                                else:
-                                    page.locator("div.attachment-task").first.click(force=True)
-                                
-                                page.wait_for_timeout(1500)
-                                
                                 with page.expect_file_chooser() as fc_info:
-                                    page.locator("button.upload-button").click(force=True)
+                                    # Clica no botão "Upload de arquivos" do pop-up central
+                                    page.locator("button:has-text('Upload de arquivos')").first.click(force=True)
                                 fc_info.value.set_files([imagem_path])
                                 
                                 current_count = str(i + 1)
                                 log_to_ui(f"   ⏳ Enviando arquivo {current_count}/{len(imagens)}...")
                                 
                                 page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']").wait_for(timeout=60000)
-                                # Aumento de segurança: 1.5s após processar a bolinha
                                 page.wait_for_timeout(1500)
                                 
                             log_to_ui("   ✅ Upload do Carrossel concluído.")
+                            
+                            # 3. Finaliza selecionando as imagens e clicando em Adicionar
+                            page.locator("button:has-text('Adicionar')").last.click()
+                            page.wait_for_timeout(1500)
+                            
                         else:
-                            # NOVO: Busca e clica no botão textual "Adicionar mídia" (Para Feed/Story)
-                            if page.locator("text='Adicionar mídia'").is_visible():
-                                page.locator("text='Adicionar mídia'").first.click(force=True)
-                            elif page.locator("text='Adicionar Mídia'").is_visible():
-                                page.locator("text='Adicionar Mídia'").first.click(force=True)
-                            else:
-                                page.locator("div.attachment-task").first.click(force=True)
-                                
+                            # Fluxo de lote para Story/Feed
+                            page.locator("div.attachment-task").first.click(force=True)
                             page.wait_for_timeout(1500)
 
                             with page.expect_file_chooser() as fc_info:
-                                page.locator("button.upload-button").click(force=True)
+                                page.locator("button:has-text('Upload de arquivos')").first.click(force=True)
                             fc_info.value.set_files(imagens)
                             
                             qtd_imagens = str(len(imagens))
@@ -763,7 +758,6 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                             verificar_parada()
                             
                             page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
-                            # Aumento de segurança: 1.5s após processar a bolinha
                             page.wait_for_timeout(1500)
                             verificar_parada()
                             
@@ -772,10 +766,8 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                                 page.wait_for_timeout(2500)
                                 verificar_parada()
 
-                        btn_adicionar = page.locator("button.btn-primary:has-text('Adicionar')")
-                        if btn_adicionar.is_visible():
-                            btn_adicionar.first.click()
-                            page.wait_for_timeout(1000)
+                            page.locator("button:has-text('Adicionar')").last.click()
+                            page.wait_for_timeout(1500)
                     
                     verificar_parada()
                     page.locator("div.button-save button:has-text('Salvar')").click()
