@@ -47,9 +47,55 @@
     --shadow-card: 0 4px 24px rgba(0,0,0,.35);
     --shadow-btn:  0 2px 12px rgba(49,121,255,.30);
     --transition:  .25s cubic-bezier(.4,0,.2,1);
+
+    --plan-height: 360px;
 }
 
-/* O body agora não tem margens ou paddings para o app ocupar tudo nativamente */
+/* ---------- LIGHT MODE (Modo Vídeo) ---------- */
+body.light-mode {
+    --bg-body:        #e8e8f0;
+    --bg-shell:       #dcdce8;
+    --bg-card:        #f4f4fa;
+    --bg-card-alt:    #eaeaf2;
+    --bg-input:       #ffffff;
+    --border-subtle:  #c0c0d4;
+    --border-input:   #b0b0c8;
+
+    --text-primary:   #1a1a2e;
+    --text-secondary: #44446a;
+    --text-muted:     #8888a8;
+
+    --shadow-card: 0 4px 24px rgba(0,0,0,.10);
+    --shadow-btn:  0 2px 12px rgba(49,121,255,.15);
+}
+
+/* Sidebar no light mode: fundo mais suave */
+body.light-mode .config-card {
+    background: linear-gradient(180deg, var(--accent) 0%, #4a7de8 100%);
+}
+
+body.light-mode .config-card::before {
+    background: rgba(255,255,255,.08);
+}
+
+/* Terminal no light mode */
+body.light-mode #terminal-log {
+    background: #f0f0f8;
+    color: var(--accent);
+    border-color: var(--border-subtle);
+}
+
+/* Progress bar no light mode */
+body.light-mode .progress-bar-bg {
+    background: #d0d0e0;
+}
+
+/* Scrollbar no light mode */
+body.light-mode ::-webkit-scrollbar-thumb {
+    background: #b0b0c8;
+}
+
+/* ---------- BODY ---------- */
 body {
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     background: var(--bg-body);
@@ -59,6 +105,7 @@ body {
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;
+    transition: background var(--transition), color var(--transition);
 }
 
 /* Container expandido para cobrir 100% da largura e altura */
@@ -72,6 +119,7 @@ body {
     border: none;
     box-shadow: none;
     overflow: hidden;
+    transition: background var(--transition);
 }
 
 /* ---------- SIDEBAR (config-card) ---------- */
@@ -85,6 +133,7 @@ body {
     gap: 24px;
     position: relative;
     border-radius: 0;
+    transition: background var(--transition);
 }
 
 .config-card::before {
@@ -244,11 +293,36 @@ body {
 
 .btn-primary:hover {
     background: var(--green);
+    color: #fff;
     transform: translateY(-1px);
     box-shadow: 0 6px 28px rgba(0,0,0,.3);
 }
 
 .btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Padronizar button — mesmo estilo do INICIAR */
+.btn-padronizar {
+    background: #fff;
+    color: var(--accent);
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 12px rgba(0,0,0,.15);
+    letter-spacing: .3px;
+    margin-top: 0;
+}
+
+.btn-padronizar:hover {
+    background: var(--green);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+}
+
+.btn-padronizar:active {
     transform: translateY(0);
 }
 
@@ -277,6 +351,7 @@ body {
     padding: 24px;
     background: var(--bg-card);
     border-radius: 0;
+    transition: background var(--transition);
 }
 
 .data-card h2 {
@@ -287,6 +362,7 @@ body {
     align-items: center;
     gap: 8px;
     margin: 0;
+    transition: color var(--transition);
 }
 
 /* Header docs row */
@@ -294,20 +370,6 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-/* Warning button (Padronizar) */
-.btn-warning {
-    background: var(--green);
-    color: #fff;
-    padding: 7px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    border-radius: var(--radius-sm);
-}
-
-.btn-warning:hover {
-    background: var(--green-hover);
 }
 
 /* ---------- TEXTAREAS ---------- */
@@ -318,14 +380,14 @@ textarea {
     line-height: 1.6;
     border-radius: var(--radius-md);
     padding: 14px 16px;
-    transition: var(--transition);
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
 }
 
 #texto-docs {
     background: var(--bg-input);
     border: 1px solid var(--border-input);
     color: var(--text-primary);
-    height: 360px;
+    height: var(--plan-height);
 }
 
 #texto-docs:focus {
@@ -349,6 +411,7 @@ textarea {
     flex: 1; /* Faz o log crescer dinamicamente para ocupar o restante da tela */
     border-radius: var(--radius-md);
     padding: 14px 16px;
+    transition: background var(--transition), border-color var(--transition);
 }
 
 #terminal-log:focus {
@@ -371,6 +434,7 @@ textarea {
     height: 12px;
     overflow: hidden;
     position: relative;
+    transition: background var(--transition);
 }
 
 .progress-bar-fill {
@@ -407,6 +471,7 @@ textarea {
 /* ---------- TOGGLE SWITCHES ---------- */
 .switches-group {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     gap: 10px;
@@ -453,11 +518,60 @@ textarea {
 }
 
 .toggle-switch input:checked + .slider {
-    background-color: var(--green)
+    background-color: var(--green);
 }
 
 .toggle-switch input:checked + .slider:before {
     transform: translateX(16px);
+}
+
+/* ---------- MODAL TIMEOUT ---------- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
+
+.modal-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 28px 32px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: var(--shadow-card);
+    text-align: center;
+}
+
+.modal-box h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.modal-box p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.modal-btn {
+    padding: 10px 20px !important;
+    font-size: 13px !important;
+    margin-top: 0 !important;
+    min-width: 140px;
 }
 
 /* ---------- UTILITY ---------- */

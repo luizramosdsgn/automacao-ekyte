@@ -90,6 +90,11 @@
             Ocultar Chrome
           </label>
           <label class="toggle-switch">
+            <input type="checkbox" id="modo-video" />
+            <span class="slider"></span>
+            Modo Vídeo
+          </label>
+          <label class="toggle-switch">
             <input type="checkbox" id="criar-tarefas" />
             <span class="slider"></span>
             Criar tarefas
@@ -121,7 +126,7 @@
           <button
             type="button"
             id="btn-formatar"
-            class="btn btn-warning"
+            class="btn btn-padronizar"
             onclick="padronizarTexto()"
             title="Organizar e formatar o texto do planejamento automaticamente"
           >
@@ -157,6 +162,18 @@
             <div class="progress-bar-fill" id="barra-progresso"></div>
           </div>
           <span id="texto-progresso" class="text-progress">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de timeout -->
+    <div class="modal-overlay hidden" id="modal-timeout">
+      <div class="modal-box">
+        <h3>⏳ Tempo excedido</h3>
+        <p>A operação excedeu o limite de 30 segundos.</p>
+        <div class="modal-actions">
+          <button class="btn btn-primary modal-btn" id="btn-timeout-esperar">Esperar mais 30s</button>
+          <button class="btn btn-danger modal-btn" id="btn-timeout-cancelar">Cancelar automação</button>
         </div>
       </div>
     </div>

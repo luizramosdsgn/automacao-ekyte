@@ -13,8 +13,54 @@ window.addEventListener("DOMContentLoaded", async () => {
             elemCaminho.innerText = caminhoCurto;
             elemCaminho.title = pastaSelecionada;
         }
+        // Restaura modo vídeo salvo
+        if (config.modo_video) {
+            document.getElementById("modo-video").checked = true;
+            document.body.classList.add("light-mode");
+        }
+        // Restaura altura do planejamento
+        if (config.altura_planejamento) {
+            document.documentElement.style.setProperty('--plan-height', config.altura_planejamento + 'px');
+        }
     }
+
+    // Toggle modo vídeo (light/dark)
+    document.getElementById("modo-video").addEventListener("change", function () {
+        if (this.checked) {
+            document.body.classList.add("light-mode");
+        } else {
+            document.body.classList.remove("light-mode");
+        }
+        salvarPreferencias();
+    });
+
+    // Altura do textarea configurável via resize com duplo clique
+    let textoDocs = document.getElementById("texto-docs");
+    textoDocs.style.resize = "vertical";
+    textoDocs.style.minHeight = "120px";
+    textoDocs.style.maxHeight = "80vh";
+    textoDocs.style.height = getComputedStyle(textoDocs).height;
+
+    // Salva a altura quando o usuário redimensiona
+    new ResizeObserver(() => {
+        let alturaAtual = parseInt(textoDocs.style.height || textoDocs.offsetHeight);
+        if (alturaAtual > 0) {
+            document.documentElement.style.setProperty('--plan-height', alturaAtual + 'px');
+            salvarPreferencias();
+        }
+    }).observe(textoDocs);
 });
+
+// Salva preferências visuais (modo vídeo, altura)
+let _salvarTimeout = null;
+function salvarPreferencias() {
+    clearTimeout(_salvarTimeout);
+    _salvarTimeout = setTimeout(async () => {
+        let modoVideo = document.getElementById("modo-video").checked;
+        let altura = parseInt(getComputedStyle(document.getElementById("texto-docs")).height);
+        await eel.salvar_preferencias_py(modoVideo, altura)();
+    }, 500);
+}
 
 async function escolherPasta() {
     let caminho = await eel.selecionar_pasta_py()();
@@ -105,4 +151,35 @@ function restaurarBotoes() {
     document.getElementById("btn-parar").disabled = false;
     document.getElementById("btn-pasta").disabled = false;
     document.getElementById("btn-formatar").disabled = false;
+}
+
+// Modal de timeout — chamada pelo Python via eel
+eel.expose(pedirAguardoTimeout);
+function pedirAguardoTimeout() {
+    return new Promise((resolve) => {
+        let modal = document.getElementById("modal-timeout");
+        modal.classList.remove("hidden");
+
+        let btnEsperar = document.getElementById("btn-timeout-esperar");
+        let btnCancelar = document.getElementById("btn-timeout-cancelar");
+
+        function limpar() {
+            modal.classList.add("hidden");
+            btnEsperar.removeEventListener("click", onEsperar);
+            btnCancelar.removeEventListener("click", onCancelar);
+        }
+
+        function onEsperar() {
+            limpar();
+            resolve(true);
+        }
+
+        function onCancelar() {
+            limpar();
+            resolve(false);
+        }
+
+        btnEsperar.addEventListener("click", onEsperar);
+        btnCancelar.addEventListener("click", onCancelar);
+    });
 }

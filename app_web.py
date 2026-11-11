@@ -9,7 +9,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 import eel
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
 if getattr(sys, 'frozen', False):
     _BASE_DIR = os.path.dirname(sys.executable)
@@ -77,7 +77,9 @@ def carregar_config_py():
             return {
                 "email": cfg.get("email", ""),
                 "senha": senha_decodificada,
-                "pasta_imagens": cfg.get("pasta_imagens", "")
+                "pasta_imagens": cfg.get("pasta_imagens", ""),
+                "modo_video": cfg.get("modo_video", False),
+                "altura_planejamento": cfg.get("altura_planejamento", 360)
             }
     except Exception:
         pass
@@ -95,6 +97,20 @@ def salvar_config(email, senha, pasta):
 @eel.expose
 def salvar_config_py(email, senha, pasta):
     salvar_config(email, senha, pasta)
+
+@eel.expose
+def salvar_preferencias_py(modo_video, altura_planejamento):
+    try:
+        cfg = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        cfg["modo_video"] = modo_video
+        cfg["altura_planejamento"] = altura_planejamento
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 @eel.expose
 def selecionar_pasta_py():
@@ -308,6 +324,21 @@ def verificar_parada():
     global stop_requested
     if stop_requested:
         raise InterruptedError("Automação abortada manualmente pelo usuário.")
+
+def aguardar_com_retry(locator, timeout_ms=30000):
+    """Aguarda um locator com timeout. Se expirar, mostra modal perguntando ao usuário."""
+    while True:
+        try:
+            locator.wait_for(timeout=timeout_ms)
+            return
+        except PlaywrightTimeout:
+            log_to_ui("⏳ Tempo excedido. Aguardando decisão do usuário...")
+            continuar = eel.pedirAguardoTimeout()()
+            if continuar:
+                log_to_ui("🔄 Esperando mais 30 segundos...")
+                continue
+            else:
+                raise InterruptedError("Automação cancelada pelo usuário após timeout.")
 
 def extrair_workspace_da_pasta(caminho_pasta):
     try:
@@ -604,6 +635,10 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                 
                 workspace_name = extrair_workspace_da_pasta(pasta_imagens)
                 
+                # Usa apenas a primeira palavra do nome do workspace
+                if workspace_name and " " in workspace_name:
+                    workspace_name = workspace_name.split()[0]
+                
                 if workspace_name:
                     log_to_ui(f"Definindo Workspace para: {workspace_name}")
                     try:
@@ -735,7 +770,7 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                                 current_count = str(i + 1)
                                 log_to_ui(f"   ⏳ Enviando arquivo {current_count}/{len(imagens)}...")
                                 
-                                page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']").wait_for(timeout=60000)
+                                aguardar_com_retry(page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{current_count}']"), 60000)
                                 page.wait_for_timeout(1500)
                                 
                             log_to_ui("   ✅ Upload do Carrossel concluído.")
@@ -757,7 +792,7 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                             log_to_ui(f"   ⏳ Aguardando upload ({qtd_imagens} arquivo(s))...")
                             verificar_parada()
                             
-                            page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']").wait_for(timeout=30000)
+                            aguardar_com_retry(page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']"), 30000)
                             page.wait_for_timeout(1500)
                             verificar_parada()
                             
