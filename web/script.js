@@ -9,6 +9,8 @@ const ICONS = {
 // Carrega os dados salvos do JSON automaticamente ao abrir o app
 window.addEventListener("DOMContentLoaded", async () => {
     let config = await eel.carregar_config_py()();
+    const textoDocs = document.getElementById("texto-docs");
+
     if (config) {
         document.getElementById("email").value = config.email;
         document.getElementById("senha").value = config.senha;
@@ -19,8 +21,36 @@ window.addEventListener("DOMContentLoaded", async () => {
             elemCaminho.innerText = caminhoCurto;
             elemCaminho.title = pastaSelecionada;
         }
+        if (config.altura_planejamento) {
+            document.documentElement.style.setProperty("--plan-height", config.altura_planejamento + "px");
+            textoDocs.style.height = config.altura_planejamento + "px";
+        }
     }
+
+    let alturaAnterior = textoDocs.offsetHeight;
+    let resizeInicial = true;
+    new ResizeObserver(() => {
+        if (resizeInicial) {
+            resizeInicial = false;
+            alturaAnterior = textoDocs.offsetHeight;
+            return;
+        }
+        const alturaAtual = Math.round(textoDocs.offsetHeight);
+        if (alturaAtual > 0 && alturaAtual !== alturaAnterior) {
+            alturaAnterior = alturaAtual;
+            document.documentElement.style.setProperty("--plan-height", alturaAtual + "px");
+            salvarPreferencias(alturaAtual);
+        }
+    }).observe(textoDocs);
 });
+
+let _salvarTimeout = null;
+function salvarPreferencias(altura) {
+    clearTimeout(_salvarTimeout);
+    _salvarTimeout = setTimeout(async () => {
+        await eel.salvar_preferencias_py(altura)();
+    }, 400);
+}
 
 async function escolherPasta() {
     let caminho = await eel.selecionar_pasta_py()();
@@ -114,4 +144,27 @@ function restaurarBotoes() {
     btnParar.disabled = false;
     document.getElementById("btn-pasta").disabled = false;
     document.getElementById("btn-formatar").disabled = false;
+}
+
+eel.expose(pedirAguardoTimeout);
+function pedirAguardoTimeout() {
+    return new Promise((resolve) => {
+        const modal = document.getElementById("modal-timeout");
+        const btnEsperar = document.getElementById("btn-timeout-esperar");
+        const btnCancelar = document.getElementById("btn-timeout-cancelar");
+        modal.classList.remove("hidden");
+
+        function finalizar(resultado) {
+            modal.classList.add("hidden");
+            btnEsperar.removeEventListener("click", onEsperar);
+            btnCancelar.removeEventListener("click", onCancelar);
+            resolve(resultado);
+        }
+
+        function onEsperar() { finalizar(true); }
+        function onCancelar() { finalizar(false); }
+
+        btnEsperar.addEventListener("click", onEsperar);
+        btnCancelar.addEventListener("click", onCancelar);
+    });
 }

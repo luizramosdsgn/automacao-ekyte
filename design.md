@@ -29,9 +29,9 @@ O design segue o conceito de **Dashboard Moderno** inspirado em painéis de cont
 
 ### Cores Secundárias
 
-| Token           | Hex       | Uso                                    |
-| --------------- | --------- | -------------------------------------- |
-| `--green`       | `#10b981` | Botões de ação secundária (Padronizar) |
+| Token           | Hex       | Uso                                           |
+| --------------- | --------- | --------------------------------------------- |
+| `--green`       | `#10b981` | Hover de ação positiva (Iniciar / Padronizar) |
 | `--green-hover` | `#059669` | Hover do green                         |
 | `--red`         | `#ef4444` | Botão de parar / danger                |
 | `--red-hover`   | `#dc2626` | Hover do danger                        |
@@ -141,7 +141,7 @@ O design segue o conceito de **Dashboard Moderno** inspirado em painéis de cont
 | --------- | ----------------------- | --------- | ------------------ |
 | Primary   | `#ffffff`               | `#3179FF` | Iniciar automação  |
 | Secondary | `rgba(255,255,255,.14)` | `#fff`    | Escolher diretório |
-| Warning   | `#10b981`               | `#fff`    | Padronizar texto   |
+| Warning   | `#ffffff` (hover `#10b981`) | `#3179FF` (hover `#f0f0f8`) | Padronizar texto   |
 | Danger    | `#ef4444`               | `#fff`    | Parar automação    |
 
 ### 5.4 Barra de Progresso
@@ -163,6 +163,11 @@ O design segue o conceito de **Dashboard Moderno** inspirado em painéis de cont
 - **Padrão:** SVGs inline unificados (`viewBox="0 0 24 24"`, `stroke="currentColor"`, `stroke-width="2"`, `fill="none"`)
 - **Tamanho:** `.icon` 18×18px (títulos), `.btn .icon` e `.btn-icon .icon` 16×16px
 - **Sem dependência externa:** 100% offline, sem CDNs ou fontes de terceiros, com herança natural de cor via `currentColor`
+
+### 5.7 Textarea Configurável & Modal de Timeout
+
+- **Planejamento (`#texto-docs`):** Altura inicial controlada por `--plan-height` (`360px` padrão), com `resize: vertical` (`min-height: 120px`, `max-height: 70vh`) e persistência automática via `config.json`.
+- **Modal de Timeout (`.modal-overlay` / `.modal-box`):** Sobreposição com `backdrop-filter: blur(4px)`, card em `--bg-card` com borda `--border-subtle`, e botões **Esperar mais 30s** (`.btn-primary`) e **Cancelar automação** (`.btn-danger`).
 
 ---
 

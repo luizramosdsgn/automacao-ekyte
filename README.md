@@ -1,4 +1,4 @@
-# Robô eKyte - Automação de Tarefas (Web & Desktop)
+# Robô eKyte - Automação de Tarefas (Web)
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)
 ![Playwright](https://img.shields.io/badge/Playwright-Automation-green?logo=playwright)
@@ -17,7 +17,7 @@ A ferramenta lê o planejamento copiado do Google Docs, identifica datas, descri
 - **Lógica Inteligente de Carrossel:** Upload sequencial automatizado, aguardando validações de servidor arquivo por arquivo.
 - **Criação e Duplicação Dinâmica:** Capacidade de criar uma nova tarefa mestre `[ROBO]` do zero, perguntando a Equipe desejada e duplicando-a recursivamente.
 - **Workspace Dinâmico:** O robô varre o diretório da pasta de imagens selecionada e extrai automaticamente o cliente correto para preenchimento.
-- **Segurança e QoL:** Senha salva localmente com ofuscação (Base64) e pop-up de revisão (Pré-Check) detalhando a quantidade de posts reconhecidos.
+- **Segurança e QoL:** Senha salva localmente com ofuscação (Base64), altura do bloco de planejamento ajustável e persistida, modal interativa de timeout (esperar mais 30s ou cancelar) e pop-up de revisão (Pré-Check) detalhando a quantidade de posts reconhecidos.
 - **Modo Invisível (Headless):** Execução da automação em segundo plano sem sequestrar o mouse ou o monitor do usuário.
 
 ---
@@ -43,24 +43,17 @@ git clone https://github.com/luizramosdsgn/automacao-ekyte.git
 cd automacao-ekyte
 ```
 
-### 2. Criar e Ativar Ambiente Virtual (Recomendado)
-```bash
-# Windows (PowerShell)
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
-
-### 3. Instalar Dependências
+### 2. Instalar Dependências
 ```bash
 pip install -r requirements.txt
 playwright install chromium
 ```
+*(Opcional: caso prefira isolar os pacotes, você pode criar e ativar um ambiente virtual com `python -m venv venv` e `.\venv\Scripts\Activate.ps1` antes de instalar).*
 
-### 4. Executar a Aplicação (Versão Web Principal)
+### 3. Executar a Aplicação
 ```bash
 python app_web.py
 ```
-*(Nota: A versão legada em CustomTkinter ainda pode ser acessada via `python app_ekyte.py`).*
 
 ---
 
@@ -68,7 +61,7 @@ python app_web.py
 
 O processo de compilação foi separado para manter este documento limpo. 
 
-Para gerar o arquivo `.exe` e enviar para a sua equipe sem que eles precisem instalar o Python, consulte o nosso **[Guia de Compilação](compilação.md)**.
+Para gerar o arquivo `.exe` e enviar para a sua equipe sem que eles precisem instalar o Python, consulte o nosso **[Guia de Compilação](guia_de_compilacao.md)**.
 
 ---
 

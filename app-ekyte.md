@@ -24,28 +24,20 @@ O processo manual de cadastrar postagens no eKyte envolve repetição exaustiva:
 
 ## 2. Arquitetura do Projeto
 
-O projeto possui **duas versões da interface** que compartilham a mesma lógica de automação:
+O projeto utiliza uma **interface Web servida localmente via Eel** (`app_web.py` + `web/`):
 
-### 2.1 `app_ekyte.py` — Versão Desktop (CustomTkinter)
-
-- Interface nativa com **CustomTkinter** (dark theme)
-- Janela fixa: 850×720
-- Auto-instalação do Chromium embutida
-- Diálogo nativo para input de mês ausente (`CTkInputDialog`)
-- Empacotável como `.exe` standalone via PyInstaller
-
-### 2.2 `app_web.py` + `web/` — Versão Web (Eel)
+### 2.1 `app_web.py` + `web/` — Aplicação Web (Eel)
 
 - Interface HTML/CSS/JS servida pelo **Eel** (Python ↔ JavaScript bridge)
 - Janela: 900×750
 - Frontend em `web/index.html`, `web/style.css`, `web/script.js`
 - Comunicação bidirecional: Python expõe funções ao JS e vice-versa
-- Empacotável como `.exe` com assets web embutidos
+- Auto-instalação do Chromium embutida (`instalar_chromium_se_necessario`)
+- Empacotável como `.exe` standalone com assets web embutidos via PyInstaller
 
-### 2.3 Arquivos Compartilhados
+### 2.2 Persistência (`config.json`)
 
-- `config.json` — Persistência de email, senha (base64) e pasta de imagens
-- Lógica core idêntica em ambas versões (extração de texto, busca de imagens, automação Playwright)
+- Armazena email, senha (codificada em base64), pasta de imagens e altura configurada do bloco de texto do planejamento (`altura_planejamento`).
 
 ---
 
@@ -155,47 +147,49 @@ A execução ocorre em **thread separada** para não travar a interface:
    │   ├── Abre aba "Formulários"
    │   ├── Adiciona novo formulário (tipo selecionado)
    │   ├── Vai para aba "CRIAÇÃO"
-   │   ├── Se não for Carrossel:
-   │   │   ├── Faz upload de imagem(ns)
-   │   │   ├── Aguarda validação do eKyte
-   │   │   └── Clica "Adicionar"
+   │   ├── Faz upload de imagem(ns) (em lote ou sequencial no Carrossel)
+   │   ├── Aguarda validação do eKyte
+   │   ├── Clica "Adicionar"
    │   ├── Salva formulário
    │   └── Volta para a tarefa
-   ├── Se não tem Carrossel → Avança fase
-   │   └── "Continuar sem apontar"
+   ├── Avança fase ("Continuar sem apontar")
    ├── Atualiza barra de progresso
    └── Navega para próxima tarefa
 9. Fecha navegador
 10. Exibe "AUTOMAÇÃO FINALIZADA"
 ```
 
-### Mecanismo de Parada
+### Mecanismo de Parada e Timeout
 
 - Flag `stop_requested` verificada em pontos estratégicos (`verificar_parada()`)
 - Lança `InterruptedError` para interromper a thread imediatamente
 - Interface reflete o estado: botão muda para "CANCELANDO..." → restaura
+- **Modal de Timeout (`aguardar_com_retry()`):** Quando o upload de imagens excede o tempo limite (30s no fluxo padrão, 60s no carrossel), em vez de encerrar com erro, o Python solicita decisão via `eel.pedirAguardoTimeout()`, exibindo uma modal na interface com as opções **"Esperar mais 30s"** (retoma a espera de onde parou) ou **"Cancelar automação"**.
 
 ---
 
-## 4. Comunicação Python ↔ JS (Versão Web)
+## 4. Comunicação Python ↔ JS (Eel)
 
 ### Python → JavaScript (eel.js)
 
-| Função JS                            | Propósito                     |
-| ------------------------------------ | ----------------------------- |
-| `eel.atualizarLog(msg)`              | Adiciona mensagem ao terminal |
-| `eel.atualizarProgresso(pct, texto)` | Atualiza barra de progresso   |
-| `eel.restaurarBotoes()`              | Restaura estado dos botões    |
+| Função JS                            | Propósito                                 |
+| ------------------------------------ | ----------------------------------------- |
+| `eel.atualizarLog(msg)`              | Adiciona mensagem ao terminal             |
+| `eel.atualizarProgresso(pct, texto)` | Atualiza barra de progresso               |
+| `eel.restaurarBotoes()`              | Restaura estado dos botões                |
+| `eel.pedirAguardoTimeout()`          | Exibe modal de timeout e retorna decisão  |
 
 ### JavaScript → Python (@eel.expose)
 
-| Função Python                       | Propósito                      |
-| ----------------------------------- | ------------------------------ |
-| `carregar_config_py()`              | Carrega config.json            |
-| `selecionar_pasta_py()`             | Abre picker de pasta (tkinter) |
-| `parar_automacao_py()`              | Seta flag de parada            |
-| `padronizar_texto_py(texto, pasta)` | Sanitiza o texto colado        |
-| `iniciar_automacao_py(...)`         | Dispara a automação em thread  |
+| Função Python                       | Propósito                              |
+| ----------------------------------- | -------------------------------------- |
+| `carregar_config_py()`              | Carrega config.json                    |
+| `salvar_config_py(...)`             | Salva credenciais e pasta              |
+| `salvar_preferencias_py(altura)`    | Salva altura do bloco de planejamento  |
+| `selecionar_pasta_py()`             | Abre picker de pasta (tkinter)         |
+| `parar_automacao_py()`              | Seta flag de parada                    |
+| `padronizar_texto_py(texto, pasta)` | Sanitiza o texto colado                |
+| `iniciar_automacao_py(...)`         | Dispara a automação em thread          |
 
 ---
 
@@ -203,7 +197,6 @@ A execução ocorre em **thread separada** para não travar a interface:
 
 | Pacote          | Versão Mínima | Uso                             |
 | --------------- | ------------- | ------------------------------- |
-| `customtkinter` | ≥ 5.2.0       | GUI desktop (app_ekyte.py)      |
 | `playwright`    | ≥ 1.40.0      | Automação de navegador          |
 | `pyinstaller`   | ≥ 6.0.0       | Build do .exe                   |
 | `eel`           | ≥ 0.18.2      | Bridge Python↔HTML (app_web.py) |
@@ -223,17 +216,16 @@ A execução ocorre em **thread separada** para não travar a interface:
 
 ```
 automacao-ekyte/
-├── app_ekyte.py          # Versão desktop (CustomTkinter)
-├── app_web.py            # Versão web (Eel)
+├── app_web.py            # Aplicação principal (Eel + Playwright)
 ├── web/
 │   ├── index.html        # Interface HTML
 │   ├── style.css         # Estilos (Dashboard Style)
 │   └── script.js         # Lógica frontend
 ├── config.json           # Configurações salvas do usuário
 ├── requirements.txt      # Dependências Python
-├── app_ekyte.spec        # Build spec do desktop
-├── app_web.spec          # Build spec do web
+├── app_web.spec          # Build spec do PyInstaller
 ├── design.md             # Guia visual do projeto
+├── guia_de_compilacao.md # Guia de compilação (.exe)
 ├── README.md             # Documentação principal
 └── LICENSE               # MIT License
 ```
@@ -241,16 +233,6 @@ automacao-ekyte/
 ---
 
 ## 7. Como Compilar
-
-### Versão Desktop
-
-```powershell
-$env:PLAYWRIGHT_BROWSERS_PATH="0"
-python -m playwright install chromium
-python -m PyInstaller --noconsole --onefile --collect-all customtkinter app_ekyte.py
-```
-
-### Versão Web
 
 ```powershell
 $env:PLAYWRIGHT_BROWSERS_PATH="0"
