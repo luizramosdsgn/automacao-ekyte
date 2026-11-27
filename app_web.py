@@ -329,7 +329,7 @@ def verificar_parada():
     if stop_requested:
         raise InterruptedError("Automação abortada manualmente pelo usuário.")
 
-def aguardar_com_retry(locator, timeout_ms=30000):
+def aguardar_com_retry(locator, timeout_ms=60000):
     """Aguarda um locator com timeout. Se expirar, exibe modal perguntando ao usuário."""
     while True:
         verificar_parada()
@@ -337,10 +337,10 @@ def aguardar_com_retry(locator, timeout_ms=30000):
             locator.wait_for(timeout=timeout_ms)
             return
         except PlaywrightTimeout:
-            log_to_ui("⏳ Tempo excedido (30s). Aguardando decisão do usuário...")
+            log_to_ui("⏳ Tempo excedido (60s). Aguardando decisão do usuário...")
             continuar = eel.pedirAguardoTimeout()()
             if continuar:
-                log_to_ui("🔄 Esperando mais 30 segundos...")
+                log_to_ui("🔄 Esperando mais 60 segundos...")
                 continue
             raise InterruptedError("Automação cancelada pelo usuário após timeout.")
 
@@ -788,7 +788,7 @@ def rodar_automacao_core(email, senha, pasta_imagens, conteudo_texto, modo_invis
                             log_to_ui(f"   ⏳ Aguardando upload ({qtd_imagens} arquivo(s))...")
                             verificar_parada()
                             
-                            aguardar_com_retry(page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']"), 30000)
+                            aguardar_com_retry(page.locator(f"xpath=//div[contains(@class, 'number-ball')]/span[text()='{qtd_imagens}']"), 60000)
                             page.wait_for_timeout(1500)
                             verificar_parada()
                             
