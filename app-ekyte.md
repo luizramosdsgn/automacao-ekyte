@@ -164,7 +164,7 @@ A execução ocorre em **thread separada** para não travar a interface:
 - Flag `stop_requested` verificada em pontos estratégicos (`verificar_parada()`)
 - Lança `InterruptedError` para interromper a thread imediatamente
 - Interface reflete o estado: botão muda para "CANCELANDO..." → restaura
-- **Modal de Timeout (`aguardar_com_retry()`):** Quando o upload de imagens excede o tempo limite (30s no fluxo padrão, 60s no carrossel), em vez de encerrar com erro, o Python solicita decisão via `eel.pedirAguardoTimeout()`, exibindo uma modal na interface com as opções **"Esperar mais 30s"** (retoma a espera de onde parou) ou **"Cancelar automação"**.
+- **Modal de Timeout (`aguardar_com_retry()`):** Quando o upload de imagens excede o tempo limite (60s), em vez de encerrar com erro, o Python solicita decisão via `eel.pedirAguardoTimeout()`, exibindo uma modal na interface com as opções **"Esperar mais 60s"** (retoma a espera de onde parou) ou **"Cancelar automação"**.
 
 ---
 

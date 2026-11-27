@@ -17,7 +17,7 @@ A ferramenta lê o planejamento copiado do Google Docs, identifica datas, descri
 - **Lógica Inteligente de Carrossel:** Upload sequencial automatizado, aguardando validações de servidor arquivo por arquivo.
 - **Criação e Duplicação Dinâmica:** Capacidade de criar uma nova tarefa mestre `[ROBO]` do zero, perguntando a Equipe desejada e duplicando-a recursivamente.
 - **Workspace Dinâmico:** O robô varre o diretório da pasta de imagens selecionada e extrai automaticamente o cliente correto para preenchimento.
-- **Segurança e QoL:** Senha salva localmente com ofuscação (Base64), altura do bloco de planejamento ajustável e persistida, modal interativa de timeout (esperar mais 30s ou cancelar) e pop-up de revisão (Pré-Check) detalhando a quantidade de posts reconhecidos.
+- **Segurança e QoL:** Senha salva localmente com ofuscação (Base64), altura do bloco de planejamento ajustável e persistida, modal interativa de timeout (esperar mais 60s ou cancelar) e pop-up de revisão (Pré-Check) detalhando a quantidade de posts reconhecidos.
 - **Modo Invisível (Headless):** Execução da automação em segundo plano sem sequestrar o mouse ou o monitor do usuário.
 
 ---

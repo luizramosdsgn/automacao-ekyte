@@ -167,7 +167,7 @@ O design segue o conceito de **Dashboard Moderno** inspirado em painéis de cont
 ### 5.7 Textarea Configurável & Modal de Timeout
 
 - **Planejamento (`#texto-docs`):** Altura inicial controlada por `--plan-height` (`360px` padrão), com `resize: vertical` (`min-height: 120px`, `max-height: 70vh`) e persistência automática via `config.json`.
-- **Modal de Timeout (`.modal-overlay` / `.modal-box`):** Sobreposição com `backdrop-filter: blur(4px)`, card em `--bg-card` com borda `--border-subtle`, e botões **Esperar mais 30s** (`.btn-primary`) e **Cancelar automação** (`.btn-danger`).
+- **Modal de Timeout (`.modal-overlay` / `.modal-box`):** Sobreposição com `backdrop-filter: blur(4px)`, card em `--bg-card` com borda `--border-subtle`, e botões **Esperar mais 60s** (`.btn-primary`) e **Cancelar automação** (`.btn-danger`).
 
 ---
 
